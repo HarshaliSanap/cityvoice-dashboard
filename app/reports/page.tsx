@@ -25,15 +25,15 @@ const reports: Report[] = [
 ];
 
 const statusConfig = {
-  Pending:  { color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500" },
-  Resolved: { color: "bg-green-100 text-green-700",  dot: "bg-green-500"  },
-  New:      { color: "bg-blue-100 text-blue-700",    dot: "bg-blue-500"   },
+  Pending: { color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500" },
+  Resolved: { color: "bg-green-100 text-green-700", dot: "bg-green-500" },
+  New: { color: "bg-blue-100 text-blue-700", dot: "bg-blue-500" },
 };
 
 const priorityConfig = {
-  High:   "text-red-600 bg-red-50",
+  High: "text-red-600 bg-red-50",
   Medium: "text-orange-600 bg-orange-50",
-  Low:    "text-gray-600 bg-gray-100",
+  Low: "text-gray-600 bg-gray-100",
 };
 
 export default function ReportsPage() {
