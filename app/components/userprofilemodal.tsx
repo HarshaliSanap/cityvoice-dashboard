@@ -1,8 +1,8 @@
-"use client";
+import { useState } from "react";
 import { X, MapPin, Megaphone, Heart, MessageCircle } from "lucide-react";
 
 export interface User {
-  id: number;
+  id: string | number;
   name: string;
   email: string;
   location: string;
@@ -21,6 +21,8 @@ interface Props {
 }
 
 export default function UserProfileModal({ user, onClose }: Props) {
+  const [activeTab, setActiveTab] = useState("My Posts");
+
   if (!user) return null;
 
   return (
@@ -79,12 +81,15 @@ export default function UserProfileModal({ user, onClose }: Props) {
 
         {/* Tabs */}
         <div className="mx-4 mb-4">
-          <div className="bg-white rounded-2xl flex overflow-hidden">
-            {["My Posts", "Supported", "Replies"].map((tab, i) => (
+          <div className="bg-white rounded-2xl flex p-1 overflow-hidden shadow-sm">
+            {["My Posts", "Supported", "Replies"].map((tab) => (
               <button
                 key={tab}
-                className={`flex-1 py-2.5 text-sm font-medium transition-colors
-                  ${i === 0 ? "bg-gray-900 text-white rounded-2xl" : "text-gray-400 hover:text-gray-600"}`}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2 text-xs font-semibold transition-all duration-200
+                  ${activeTab === tab 
+                    ? "bg-gray-900 text-white rounded-xl shadow-md" 
+                    : "text-gray-400 hover:text-gray-600"}`}
               >
                 {tab}
               </button>
@@ -92,18 +97,34 @@ export default function UserProfileModal({ user, onClose }: Props) {
           </div>
         </div>
 
-        {/* Posts */}
+        {/* Tab Content */}
         <div className="mx-4 mb-4 space-y-2">
-          {user.posts.length > 0 ? (
-            user.posts.map((post, i) => (
-              <div key={i} className="bg-white rounded-2xl px-4 py-3">
-                <p className="text-sm font-medium text-gray-800">{post.title}</p>
-                <p className="text-xs text-gray-400 mt-1">{post.time}</p>
+          {activeTab === "My Posts" && (
+            user.posts.length > 0 ? (
+              user.posts.map((post, i) => (
+                <div key={i} className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-50">
+                  <p className="text-sm font-semibold text-gray-800 line-clamp-2">{post.title}</p>
+                  <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                    🕒 {post.time ? new Date(post.time.split(' ')[0]).toLocaleDateString() : "Recently"}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="bg-white rounded-2xl px-4 py-8 text-center text-gray-400 text-sm italic">
+                No posts found
               </div>
-            ))
-          ) : (
-            <div className="bg-white rounded-2xl px-4 py-6 text-center text-gray-400 text-sm">
-              No posts yet
+            )
+          )}
+          
+          {activeTab === "Supported" && (
+            <div className="bg-white rounded-2xl px-4 py-8 text-center text-gray-400 text-sm italic">
+              No supported voices yet
+            </div>
+          )}
+
+          {activeTab === "Replies" && (
+            <div className="bg-white rounded-2xl px-4 py-8 text-center text-gray-400 text-sm italic">
+              No replies found
             </div>
           )}
         </div>

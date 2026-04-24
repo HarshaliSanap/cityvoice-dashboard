@@ -1,14 +1,8 @@
-import { ref, onValue, get } from "firebase/database";
+import { ref, onValue, get, push, update, remove } from "firebase/database";
 import { db } from "../firebase";
 
 export const getStats = async () => {
-  const stats = {
-    users: 0,
-    posts: 0,
-    replies: 0,
-    pending: 0
-  };
-
+  const stats = { users: 0, posts: 0, replies: 0, pending: 0 };
   try {
     const usersSnapshot = await get(ref(db, 'users'));
     const postsSnapshot = await get(ref(db, 'posts'));
@@ -20,7 +14,6 @@ export const getStats = async () => {
     if (postsSnapshot.exists()) {
       const postsData = postsSnapshot.val();
       stats.posts = Object.keys(postsData).length;
-      // Count pending (0 replies)
       stats.pending = Object.values(postsData).filter((p: any) => !p.replies || p.replies === 0).length;
     }
     if (repliesSnapshot.exists()) {
@@ -34,7 +27,6 @@ export const getStats = async () => {
   } catch (error) {
     console.error("Error fetching stats:", error);
   }
-
   return stats;
 };
 
@@ -44,7 +36,6 @@ export const subscribeToStats = (callback: (stats: any) => void) => {
   const repliesRef = ref(db, 'replies');
 
   let stats = { users: 0, posts: 0, replies: 0, pending: 0 };
-
   const updateStats = () => callback({ ...stats });
 
   onValue(usersRef, (snapshot) => {
@@ -80,24 +71,17 @@ export const subscribeToStats = (callback: (stats: any) => void) => {
 };
 
 export const subscribeToReplies = (callback: (replies: any) => void) => {
-  const repliesRef = ref(db, 'replies');
-  onValue(repliesRef, (snapshot) => {
+  onValue(ref(db, 'replies'), (snapshot) => {
     callback(snapshot.val() || {});
   });
 };
 
 export const subscribeToPosts = (callback: (posts: any[]) => void) => {
-  const postsRef = ref(db, 'posts');
-
-  onValue(postsRef, (snapshot) => {
+  onValue(ref(db, 'posts'), (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
-      const postsArray = Object.keys(data).map(key => ({
-        id: key,
-        ...data[key]
-      }));
-      // Sort by timestamp if available, otherwise just return the last few
-      callback(postsArray.slice(-5).reverse());
+      const postsArray = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+      callback(postsArray);
     } else {
       callback([]);
     }
@@ -105,17 +89,14 @@ export const subscribeToPosts = (callback: (posts: any[]) => void) => {
 };
 
 export const subscribeToUsers = (callback: (users: any[]) => void) => {
-  const usersRef = ref(db, 'users');
-
-  onValue(usersRef, (snapshot) => {
+  onValue(ref(db, 'users'), (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
       const usersArray = Object.keys(data).map(key => ({
         id: key,
         ...data[key],
-        // Generate fallback values if missing
         initial: (data[key].name || "U").charAt(0).toUpperCase(),
-        color: "bg-blue-500" // Default color
+        color: "bg-blue-500"
       }));
       callback(usersArray);
     } else {
@@ -139,11 +120,11 @@ export const getChartData = (posts: any[], users: any[]) => {
 
   posts.forEach(p => {
     if (p.timestamp) {
-      const date = new Date(p.timestamp.split(' ')[0]);
+      const date = new Date(p.timestamp.replace(' ', 'T'));
       if (date.getFullYear() === currentYear) {
         const monthIndex = date.getMonth();
         chartData[monthIndex].new++;
-        if (p.status === "Resolved" || p.replies) {
+        if (p.replies > 0) {
           chartData[monthIndex].resolved++;
         } else {
           chartData[monthIndex].pending++;
@@ -163,7 +144,6 @@ export const getChartData = (posts: any[], users: any[]) => {
 
 export const sendReply = async (postId: string, text: string, adminName: string = "Admin") => {
   try {
-    const { push, update } = require("firebase/database");
     const repliesRef = ref(db, `replies/${postId}`);
     await push(repliesRef, {
       name: adminName,
@@ -172,14 +152,12 @@ export const sendReply = async (postId: string, text: string, adminName: string 
       uid: "admin_id" 
     });
     
-    // Also update the replies count in the post itself
     const postRef = ref(db, `posts/${postId}`);
     const postSnapshot = await get(postRef);
     if (postSnapshot.exists()) {
       const currentReplies = postSnapshot.val().replies || 0;
       await update(postRef, { replies: currentReplies + 1 });
     }
-    
     return true;
   } catch (error) {
     console.error("Error sending reply:", error);
@@ -188,8 +166,7 @@ export const sendReply = async (postId: string, text: string, adminName: string 
 };
 
 export const subscribeToSettings = (callback: (settings: any) => void) => {
-  const settingsRef = ref(db, 'admin_settings');
-  onValue(settingsRef, (snapshot) => {
+  onValue(ref(db, 'admin_settings'), (snapshot) => {
     const defaultSettings = {
       darkMode: false,
       realTimeUpdates: true,
@@ -202,12 +179,39 @@ export const subscribeToSettings = (callback: (settings: any) => void) => {
 
 export const updateSetting = async (key: string, value: boolean) => {
   try {
-    const { update } = require("firebase/database");
-    const settingsRef = ref(db, 'admin_settings');
-    await update(settingsRef, { [key]: value });
+    await update(ref(db, 'admin_settings'), { [key]: value });
     return true;
   } catch (error) {
     console.error("Error updating setting:", error);
+    return false;
+  }
+};
+
+export const subscribeToAuthorities = (callback: (authorities: any[]) => void) => {
+  onValue(ref(db, 'authorities'), (snapshot) => {
+    const data = snapshot.val();
+    const list = data ? Object.entries(data).map(([id, val]: [string, any]) => ({ id, ...val })) : [];
+    callback(list);
+  });
+};
+
+export const updateAuthority = async (id: string, name: string) => {
+  try {
+    await update(ref(db, `authorities/${id}`), { name });
+    return true;
+  } catch (error) {
+    console.error("Error updating authority:", error);
+    return false;
+  }
+};
+
+export const deletePost = async (id: string) => {
+  try {
+    await remove(ref(db, `posts/${id}`));
+    await remove(ref(db, `replies/${id}`));
+    return true;
+  } catch (error) {
+    console.error("Error deleting post:", error);
     return false;
   }
 };
