@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 
 export default function FounderAddress() {
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [address, setAddress] = useState({
     name: "Abhijit Polke",
     title: "Founder, CityVoice",
@@ -22,14 +23,20 @@ export default function FounderAddress() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
+    // Simulate real database save
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     setAddress((prev) => ({
       ...prev,
       lastUpdated: new Date().toLocaleDateString("en-US", {
         year: "numeric", month: "long", day: "numeric",
       }),
     }));
+    setIsSaving(false);
     setIsEditing(false);
+    alert("Address updated successfully!");
   };
 
   return (
@@ -42,9 +49,10 @@ export default function FounderAddress() {
             <>
               <button
                 onClick={handleSave}
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                disabled={isSaving}
+                className={`px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                Save
+                {isSaving ? "Saving..." : "Save"}
               </button>
               <button
                 onClick={() => setIsEditing(false)}

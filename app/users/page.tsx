@@ -1,52 +1,49 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import UserProfileModal, { User } from "../components/userprofilemodal";
-
-const users: User[] = [
-  {
-    id: 1, name: "shubham", email: "shubham.34@gmail.com",
-    location: "Navi Mumbai", pincode: "909090",
-    voices: 1, supported: 0, replies: 0,
-    posts: [{ title: "road issues", time: "23h ago" }],
-    initial: "A", color: "bg-[#e8694a]",
-  },
-  {
-    id: 2, name: "Priya", email: "priya.sharma@gmail.com",
-    location: "Pune", pincode: "411001",
-    voices: 3, supported: 5, replies: 2,
-    posts: [
-      { title: "Broken streetlight", time: "2h ago" },
-      { title: "Garbage issue", time: "1d ago" },
-    ],
-    initial: "P", color: "bg-blue-500",
-  },
-  {
-    id: 3, name: "Rahul", email: "rahul.patil@gmail.com",
-    location: "Mumbai", pincode: "400001",
-    voices: 7, supported: 12, replies: 4,
-    posts: [{ title: "Pothole near school", time: "3d ago" }],
-    initial: "R", color: "bg-green-500",
-  },
-  {
-    id: 4, name: "Sneha", email: "sneha.kulkarni@gmail.com",
-    location: "Thane", pincode: "400601",
-    voices: 2, supported: 8, replies: 1,
-    posts: [{ title: "Water supply issue", time: "5h ago" }],
-    initial: "S", color: "bg-purple-500",
-  },
-  {
-    id: 5, name: "Vikram", email: "vikram.desai@gmail.com",
-    location: "Nashik", pincode: "422001",
-    voices: 0, supported: 3, replies: 0,
-    posts: [],
-    initial: "V", color: "bg-orange-500",
-  },
-];
+import { subscribeToUsers, subscribeToPosts, subscribeToReplies } from "@/lib/services/dataService";
 
 export default function UserManagement() {
+  const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    // Subscribe to users, posts, and the nested replies structure
+    subscribeToUsers((fetchedUsers) => {
+      subscribeToPosts((fetchedPosts) => {
+        subscribeToReplies((repliesData) => {
+          const mappedUsers = fetchedUsers.map(u => {
+            const userPosts = fetchedPosts.filter(p => p.uid === u.id);
+            
+            // Count replies sent BY this user across all posts
+            let userRepliesCount = 0;
+            Object.values(repliesData).forEach((postReplies: any) => {
+              Object.values(postReplies).forEach((reply: any) => {
+                if (reply.uid === u.id) userRepliesCount++;
+              });
+            });
+            
+            return {
+              id: u.id,
+              name: u.name || "Anonymous",
+              email: u.email || "No email",
+              location: u.address || "Unknown",
+              pincode: u.pincode || "N/A",
+              voices: userPosts.length,
+              supported: u.supported || 0,
+              replies: userRepliesCount,
+              posts: userPosts.map(p => ({ title: p.description, time: p.timestamp })),
+              initial: (u.name || "U").charAt(0).toUpperCase(),
+              color: "bg-blue-500"
+            };
+          });
+          setUsers(mappedUsers);
+        });
+      });
+    });
+  }, []);
 
   const filtered = users.filter((u) =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -77,9 +74,9 @@ export default function UserManagement() {
         <div className="grid grid-cols-4 gap-4 mb-6">
           {[
             { label: "Total Users", value: users.length, color: "bg-blue-500" },
-            { label: "Active Users", value: users.filter(u => u.voices > 0).length, color: "bg-green-500" },
-            { label: "Total Voices", value: users.reduce((a, u) => a + u.voices, 0), color: "bg-orange-500" },
-            { label: "Total Replies", value: users.reduce((a, u) => a + u.replies, 0), color: "bg-purple-500" },
+            { label: "Active Users", value: users.filter(u => u.voices > 0 || (u.posts && u.posts.length > 0)).length, color: "bg-green-500" },
+            { label: "Total Voices", value: users.reduce((a, u) => a + (u.voices || 0), 0), color: "bg-orange-500" },
+            { label: "Total Replies", value: users.reduce((a, u) => a + (u.replies || 0), 0), color: "bg-purple-500" },
           ].map((s) => (
             <div key={s.label} className={`${s.color} text-white rounded-xl p-4`}>
               <p className="text-sm opacity-90">{s.label}</p>
