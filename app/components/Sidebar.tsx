@@ -7,7 +7,7 @@ const nav = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "User Management", icon: Users, href: "/users" },
   { label: "Reports", icon: FileText, href: "/reports" },
-  { label: "Replies", icon: MessageSquare, href: "/replies" },
+  { label: "Responses", icon: MessageSquare, href: "/replies" },
   { label: "Authority Mapping", icon: Network, href: "/authority" },
   { label: "Content Moderation", icon: Shield, href: "/moderation" },
   { label: "Settings", icon: Settings, href: "/settings" },
