@@ -38,12 +38,12 @@ export const subscribeToStats = (callback: (stats: any) => void) => {
   let stats = { users: 0, posts: 0, replies: 0, pending: 0 };
   const updateStats = () => callback({ ...stats });
 
-  onValue(usersRef, (snapshot) => {
+  const unsubscribeUsers = onValue(usersRef, (snapshot) => {
     stats.users = snapshot.exists() ? Object.keys(snapshot.val()).length : 0;
     updateStats();
   });
 
-  onValue(postsRef, (snapshot) => {
+  const unsubscribePosts = onValue(postsRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
       stats.posts = Object.keys(data).length;
@@ -55,7 +55,7 @@ export const subscribeToStats = (callback: (stats: any) => void) => {
     updateStats();
   });
 
-  onValue(repliesRef, (snapshot) => {
+  const unsubscribeReplies = onValue(repliesRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
       let total = 0;
@@ -68,16 +68,22 @@ export const subscribeToStats = (callback: (stats: any) => void) => {
     }
     updateStats();
   });
+
+  return () => {
+    unsubscribeUsers();
+    unsubscribePosts();
+    unsubscribeReplies();
+  };
 };
 
 export const subscribeToReplies = (callback: (replies: any) => void) => {
-  onValue(ref(db, 'replies'), (snapshot) => {
+  return onValue(ref(db, 'replies'), (snapshot) => {
     callback(snapshot.val() || {});
   });
 };
 
 export const subscribeToPosts = (callback: (posts: any[]) => void) => {
-  onValue(ref(db, 'posts'), (snapshot) => {
+  return onValue(ref(db, 'posts'), (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
       const postsArray = Object.keys(data).map(key => ({ id: key, ...data[key] }));
@@ -89,7 +95,7 @@ export const subscribeToPosts = (callback: (posts: any[]) => void) => {
 };
 
 export const subscribeToUsers = (callback: (users: any[]) => void) => {
-  onValue(ref(db, 'users'), (snapshot) => {
+  return onValue(ref(db, 'users'), (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
       const usersArray = Object.keys(data).map(key => ({
@@ -166,7 +172,7 @@ export const sendReply = async (postId: string, text: string, adminName: string 
 };
 
 export const subscribeToSettings = (callback: (settings: any) => void) => {
-  onValue(ref(db, 'admin_settings'), (snapshot) => {
+  return onValue(ref(db, 'admin_settings'), (snapshot) => {
     const defaultSettings = {
       darkMode: false,
       realTimeUpdates: true,
@@ -187,10 +193,20 @@ export const updateSetting = async (key: string, value: boolean) => {
   }
 };
 
-export const subscribeToAuthorities = (callback: (authorities: any[]) => void) => {
-  onValue(ref(db, 'authorities'), (snapshot) => {
+export type AuthorityRecord = {
+  id: string;
+  name?: string;
+  email?: string;
+  address?: string;
+  createdAt?: string;
+};
+
+export const subscribeToAuthorities = (callback: (authorities: AuthorityRecord[]) => void) => {
+  return onValue(ref(db, 'authorities'), (snapshot) => {
     const data = snapshot.val();
-    const list = data ? Object.entries(data).map(([id, val]: [string, any]) => ({ id, ...val })) : [];
+    const list = data
+      ? Object.entries(data as Record<string, Omit<AuthorityRecord, "id">>).map(([id, val]) => ({ id, ...val }))
+      : [];
     callback(list);
   });
 };
@@ -201,6 +217,23 @@ export const updateAuthority = async (id: string, name: string) => {
     return true;
   } catch (error) {
     console.error("Error updating authority:", error);
+    return false;
+  }
+};
+
+export const createAuthority = async (authority: {
+  name: string;
+  email: string;
+  address: string;
+}) => {
+  try {
+    await push(ref(db, 'authorities'), {
+      ...authority,
+      createdAt: new Date().toISOString(),
+    });
+    return true;
+  } catch (error) {
+    console.error("Error creating authority:", error);
     return false;
   }
 };

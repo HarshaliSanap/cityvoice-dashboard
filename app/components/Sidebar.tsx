@@ -1,11 +1,12 @@
 "use client";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, FileText, MessageSquare, Network, Shield, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, SquarePen, FileText, MessageSquare, Network, Shield, Settings, LogOut } from "lucide-react";
 import Link from "next/link";
 
 const nav = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "User Management", icon: Users, href: "/users" },
+  { label: "Post", icon: SquarePen, href: "/posts" },
   { label: "Reports", icon: FileText, href: "/reports" },
   { label: "Responses", icon: MessageSquare, href: "/replies" },
   { label: "Authority Mapping", icon: Network, href: "/authority" },
