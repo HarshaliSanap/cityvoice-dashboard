@@ -66,7 +66,7 @@ export default function UserProfileModal({ user, onClose }: Props) {
             {[
               { icon: Megaphone, value: user.voices, label: "VOICES", color: "text-[#e8694a]", bg: "bg-[#fde8e2]" },
               { icon: Heart, value: user.supported, label: "SUPPORTED", color: "text-green-500", bg: "bg-green-50" },
-              { icon: MessageCircle, value: user.replies, label: "REPLIES", color: "text-blue-500", bg: "bg-blue-50" },
+              { icon: MessageCircle, value: user.replies, label: "RESPONSES", color: "text-blue-500", bg: "bg-blue-50" },
             ].map(({ icon: Icon, value, label, color, bg }) => (
               <div key={label} className="flex flex-col items-center gap-1 px-2">
                 <div className={`w-9 h-9 rounded-full ${bg} flex items-center justify-center`}>
@@ -82,7 +82,7 @@ export default function UserProfileModal({ user, onClose }: Props) {
         {/* Tabs */}
         <div className="mx-4 mb-4">
           <div className="bg-white rounded-2xl flex p-1 overflow-hidden shadow-sm">
-            {["My Posts", "Supported", "Replies"].map((tab) => (
+            {["My Posts", "Supported", "Responses"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -122,9 +122,9 @@ export default function UserProfileModal({ user, onClose }: Props) {
             </div>
           )}
 
-          {activeTab === "Replies" && (
+          {activeTab === "Responses" && (
             <div className="bg-white rounded-2xl px-4 py-8 text-center text-gray-400 text-sm italic">
-              No replies found
+              No responses found
             </div>
           )}
         </div>

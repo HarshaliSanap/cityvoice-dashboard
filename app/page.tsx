@@ -7,19 +7,31 @@ import Link from "next/link";
 import RealTimeStats from "./components/RealTimeStats";
 import ReportsOverviewChart from "./components/ReportsOverviewChart";
 import UserActivityChart from "./components/UserActivityChart";
-import FounderAddress from "./components/FounderAddress";
 import RecentReports from "./components/RecentReports";
 import AuthorityMapping from "./components/AuthorityMapping";
+import TopDashboardHighlights from "./components/TopDashboardHighlights";
 
 import { useDashboardData } from "@/lib/hooks/useDashboardData";
 import {
+  subscribeToAccountBlockClaims,
   subscribeToSettings,
   updateSetting,
 } from "@/lib/services/dataService";
 
+type AccountBlockClaim = {
+  id: string;
+  description?: string;
+  timestamp?: string;
+  userBlocked?: boolean;
+  userEmail?: string;
+  userId?: string;
+  userName?: string;
+};
+
 export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [accountBlockClaims, setAccountBlockClaims] = useState<AccountBlockClaim[]>([]);
 
   const [adminSettings, setAdminSettings] = useState({
     darkMode: false,
@@ -38,6 +50,14 @@ export default function Dashboard() {
     return () => unsubscribe && unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToAccountBlockClaims((claims) => {
+      setAccountBlockClaims(claims);
+    });
+
+    return () => unsubscribe?.();
+  }, []);
+
   const handleToggleSetting = (
     key: string,
     currentValue: boolean
@@ -45,16 +65,19 @@ export default function Dashboard() {
     updateSetting(key, !currentValue);
   };
 
+  const getTimestampValue = (timestamp?: string) => {
+    if (!timestamp) return 0;
+
+    const parsed = new Date(timestamp.replace(" ", "T")).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
   // Dynamic notifications
-  const notifications = (reports || [])
+  const reportNotifications = (reports || [])
     .sort(
       (a, b) =>
-        new Date(
-          b.timestamp?.replace(" ", "T")
-        ).getTime() -
-        new Date(
-          a.timestamp?.replace(" ", "T")
-        ).getTime()
+        getTimestampValue(b.timestamp) -
+        getTimestampValue(a.timestamp)
     )
     .slice(0, 5)
     .map((r) => ({
@@ -64,6 +87,7 @@ export default function Dashboard() {
             r.timestamp.split(" ")[0]
           ).toLocaleDateString()
         : "Just now",
+      timestamp: r.timestamp || "",
       icon:
         r.category === "Roads"
           ? "🛣️"
@@ -72,16 +96,32 @@ export default function Dashboard() {
           : "📋",
       desc: `${r.name || "User"} reported: ${
         r.description?.substring(0, 40) || ""
-      }...`,
+      }...${r.authorBlocked ? " (Blocked user)" : ""}`,
+      href: "/reports",
     }));
 
+  const claimNotifications = accountBlockClaims.slice(0, 5).map((claim) => ({
+    title: "Account block claim",
+    time: claim.timestamp ? new Date(claim.timestamp.replace(" ", "T")).toLocaleString() : "Just now",
+    timestamp: claim.timestamp || "",
+    icon: "!",
+    desc: `${claim.userName || "User"} says their account is blocked${
+      claim.description ? `: ${claim.description.substring(0, 50)}` : ""
+    }`,
+    href: claim.userId ? `/users/${claim.userId}` : "/users?filter=claims",
+  }));
+
+  const notifications = [...claimNotifications, ...reportNotifications]
+    .sort((a, b) => getTimestampValue(b.timestamp) - getTimestampValue(a.timestamp))
+    .slice(0, 8);
+
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content */}
-      <main className="flex-1 relative overflow-x-hidden p-4 sm:p-6 lg:p-8">
+      <main className="relative flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           {/* Title */}
@@ -136,8 +176,9 @@ export default function Dashboard() {
                   <div className="max-h-64 overflow-y-auto">
                     {notifications.length > 0 ? (
                       notifications.map((n, i) => (
-                        <div
+                        <Link
                           key={i}
+                          href={n.href}
                           className="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
                         >
                           <div className="flex gap-3">
@@ -159,7 +200,7 @@ export default function Dashboard() {
                               </p>
                             </div>
                           </div>
-                        </div>
+                        </Link>
                       ))
                     ) : (
                       <div className="p-8 text-center text-gray-400 text-sm italic">
@@ -169,7 +210,7 @@ export default function Dashboard() {
                   </div>
 
                   <Link
-                    href="/reports"
+                    href="/notifications"
                     className="block"
                   >
                     <button className="w-full py-3 text-xs text-blue-600 font-bold bg-gray-50 hover:bg-gray-100 transition-colors">
@@ -299,9 +340,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Founder Address */}
         <div className="mb-6">
-          <FounderAddress />
+          <TopDashboardHighlights />
         </div>
 
         {/* Bottom Section */}

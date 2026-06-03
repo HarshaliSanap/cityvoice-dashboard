@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import {
   createAuthority,
+  deleteAuthority,
   subscribeToAuthorities,
   updateAuthority,
   type AuthorityRecord,
 } from "@/lib/services/dataService";
 import Sidebar from "../components/Sidebar";
-import { Building2, Check, Edit2, Mail, MapPin, Megaphone, Plus, X } from "lucide-react";
+import { Building2, Check, Edit2, Mail, MapPin, Megaphone, Plus, Trash2, X } from "lucide-react";
 
 const emptyForm = {
   name: "",
@@ -20,7 +21,7 @@ const emptyForm = {
 export default function AuthorityPage() {
   const [authorities, setAuthorities] = useState<AuthorityRecord[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
+  const [editForm, setEditForm] = useState(emptyForm);
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
@@ -34,16 +35,43 @@ export default function AuthorityPage() {
 
   const handleEdit = (authority: AuthorityRecord) => {
     setEditingId(authority.id);
-    setEditValue(authority.name || "");
+    setEditForm({
+      name: authority.name || "",
+      email: authority.email || "",
+      address: authority.address || "",
+    });
   };
 
   const handleSave = async (id: string) => {
-    if (!editValue.trim()) return;
+    if (!editForm.name.trim() || !editForm.email.trim() || !editForm.address.trim()) return;
 
     setIsSaving(true);
-    await updateAuthority(id, editValue.trim());
+    const updated = await updateAuthority(id, {
+      name: editForm.name.trim(),
+      email: editForm.email.trim(),
+      address: editForm.address.trim(),
+    });
     setIsSaving(false);
-    setEditingId(null);
+
+    if (updated) {
+      setEditingId(null);
+      setEditForm(emptyForm);
+    } else {
+      alert("Failed to update authority. Please try again.");
+    }
+  };
+
+  const handleDelete = async (authority: AuthorityRecord) => {
+    const confirmed = window.confirm(`Delete ${authority.name || "this authority"}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setIsSaving(true);
+    const deleted = await deleteAuthority(authority.id);
+    setIsSaving(false);
+
+    if (!deleted) {
+      alert("Failed to delete authority. Please try again.");
+    }
   };
 
   const handleCreate = async (e: FormEvent<HTMLFormElement>) => {
@@ -68,9 +96,18 @@ export default function AuthorityPage() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const updateEditForm = (field: keyof typeof emptyForm, value: string) => {
+    setEditForm((current) => ({ ...current, [field]: value }));
+  };
+
   const closeForm = () => {
     setIsAdding(false);
     setForm(emptyForm);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm(emptyForm);
   };
 
   return (
@@ -176,12 +213,16 @@ export default function AuthorityPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     {editingId === authority.id ? (
-                      <input
-                        className="w-full border-b-2 border-blue-500 bg-transparent text-lg font-bold text-gray-800 outline-none"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        autoFocus
-                      />
+                      <label className="block">
+                        <span className="sr-only">Authority name</span>
+                        <input
+                          className="w-full border-b-2 border-blue-500 bg-transparent text-lg font-bold text-gray-800 outline-none"
+                          value={editForm.name}
+                          onChange={(e) => updateEditForm("name", e.target.value)}
+                          placeholder="Authority name"
+                          autoFocus
+                        />
+                      </label>
                     ) : (
                       <h3 className="truncate text-lg font-bold text-gray-800">{authority.name}</h3>
                     )}
@@ -192,11 +233,30 @@ export default function AuthorityPage() {
                 <div className="space-y-3 border-t border-gray-100 pt-4">
                   <div className="flex items-center gap-3 text-sm text-gray-600">
                     <Mail size={16} className="shrink-0 text-gray-400" />
-                    <span className="break-all">{authority.email || "No email added"}</span>
+                    {editingId === authority.id ? (
+                      <input
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) => updateEditForm("email", e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        placeholder="authority@example.com"
+                      />
+                    ) : (
+                      <span className="break-all">{authority.email || "No email added"}</span>
+                    )}
                   </div>
                   <div className="flex items-start gap-3 text-sm text-gray-600">
                     <MapPin size={16} className="mt-0.5 shrink-0 text-gray-400" />
-                    <span>{authority.address || "No address added"}</span>
+                    {editingId === authority.id ? (
+                      <textarea
+                        value={editForm.address}
+                        onChange={(e) => updateEditForm("address", e.target.value)}
+                        className="min-h-20 w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        placeholder="Ward office address"
+                      />
+                    ) : (
+                      <span>{authority.address || "No address added"}</span>
+                    )}
                   </div>
                 </div>
 
@@ -212,7 +272,7 @@ export default function AuthorityPage() {
                         <Check size={16} />
                       </button>
                       <button
-                        onClick={() => setEditingId(null)}
+                        onClick={cancelEdit}
                         className="rounded-lg bg-gray-100 p-2 text-gray-400 transition-colors hover:bg-gray-200"
                         aria-label="Cancel editing authority"
                       >
@@ -220,13 +280,23 @@ export default function AuthorityPage() {
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={() => handleEdit(authority)}
-                      className="rounded-lg p-2 text-gray-400 opacity-0 transition-all hover:bg-blue-50 hover:text-blue-600 group-hover:opacity-100"
-                      aria-label="Edit authority name"
-                    >
-                      <Edit2 size={16} />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleEdit(authority)}
+                        className="rounded-lg p-2 text-gray-400 opacity-0 transition-all hover:bg-blue-50 hover:text-blue-600 group-hover:opacity-100"
+                        aria-label="Edit authority"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(authority)}
+                        disabled={isSaving}
+                        className="rounded-lg p-2 text-gray-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 group-hover:opacity-100"
+                        aria-label="Delete authority"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
