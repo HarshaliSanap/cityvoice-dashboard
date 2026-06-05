@@ -15,6 +15,7 @@ import { useDashboardData } from "@/lib/hooks/useDashboardData";
 import {
   subscribeToAccountBlockClaims,
   subscribeToSettings,
+  subscribeToUserNotifications,
   updateSetting,
 } from "@/lib/services/dataService";
 
@@ -28,10 +29,29 @@ type AccountBlockClaim = {
   userName?: string;
 };
 
+type UserNotification = {
+  id: string;
+  createdAt?: string;
+  expiresAt?: string;
+  logoUrl?: string;
+  message?: string;
+};
+
+type DashboardNotification = {
+  desc: string;
+  href: string;
+  icon: string;
+  imageIcon: boolean;
+  time: string;
+  timestamp: string;
+  title: string;
+};
+
 export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [accountBlockClaims, setAccountBlockClaims] = useState<AccountBlockClaim[]>([]);
+  const [userNotifications, setUserNotifications] = useState<UserNotification[]>([]);
 
   const [adminSettings, setAdminSettings] = useState({
     darkMode: false,
@@ -58,6 +78,14 @@ export default function Dashboard() {
     return () => unsubscribe?.();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToUserNotifications((notifications) => {
+      setUserNotifications(notifications);
+    });
+
+    return () => unsubscribe?.();
+  }, []);
+
   const handleToggleSetting = (
     key: string,
     currentValue: boolean
@@ -73,7 +101,7 @@ export default function Dashboard() {
   };
 
   // Dynamic notifications
-  const reportNotifications = (reports || [])
+  const reportNotifications: DashboardNotification[] = (reports || [])
     .sort(
       (a, b) =>
         getTimestampValue(b.timestamp) -
@@ -98,9 +126,10 @@ export default function Dashboard() {
         r.description?.substring(0, 40) || ""
       }...${r.authorBlocked ? " (Blocked user)" : ""}`,
       href: "/reports",
+      imageIcon: false,
     }));
 
-  const claimNotifications = accountBlockClaims.slice(0, 5).map((claim) => ({
+  const claimNotifications: DashboardNotification[] = accountBlockClaims.slice(0, 5).map((claim) => ({
     title: "Account block claim",
     time: claim.timestamp ? new Date(claim.timestamp.replace(" ", "T")).toLocaleString() : "Just now",
     timestamp: claim.timestamp || "",
@@ -109,9 +138,20 @@ export default function Dashboard() {
       claim.description ? `: ${claim.description.substring(0, 50)}` : ""
     }`,
     href: claim.userId ? `/users/${claim.userId}` : "/users?filter=claims",
+    imageIcon: false,
   }));
 
-  const notifications = [...claimNotifications, ...reportNotifications]
+  const adminUserNotifications: DashboardNotification[] = userNotifications.slice(0, 5).map((notification) => ({
+    title: "CityVoice notification",
+    time: notification.createdAt ? new Date(notification.createdAt).toLocaleString() : "Just now",
+    timestamp: notification.createdAt || "",
+    icon: notification.logoUrl || "/CityVoiceLogo.jpeg",
+    desc: notification.message || "No message",
+    href: "/notify",
+    imageIcon: true,
+  }));
+
+  const notifications = [...adminUserNotifications, ...claimNotifications, ...reportNotifications]
     .sort((a, b) => getTimestampValue(b.timestamp) - getTimestampValue(a.timestamp))
     .slice(0, 8);
 
@@ -182,9 +222,13 @@ export default function Dashboard() {
                           className="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
                         >
                           <div className="flex gap-3">
-                            <span className="text-xl">
-                              {n.icon}
-                            </span>
+                            {n.imageIcon ? (
+                              <img src={n.icon} alt="CityVoice logo" className="h-9 w-9 rounded-xl object-cover" />
+                            ) : (
+                              <span className="text-xl">
+                                {n.icon}
+                              </span>
+                            )}
 
                             <div>
                               <p className="text-sm font-semibold text-gray-800">

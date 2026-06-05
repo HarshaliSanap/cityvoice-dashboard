@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, KeyRound, LayoutDashboard, Users, SquarePen, FileText, MessageSquare, Network, Shield, Settings, LogOut } from "lucide-react";
+import { Bell, KeyRound, LayoutDashboard, Users, SquarePen, FileText, MessageSquare, Network, Shield, Settings, LogOut, Send } from "lucide-react";
 import Link from "next/link";
 import { logoutAdmin } from "@/lib/services/authService";
 import { useAuth } from "./AuthProvider";
@@ -9,6 +9,7 @@ import { useAuth } from "./AuthProvider";
 const nav = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Notifications", icon: Bell, href: "/notifications" },
+  { label: "Notify Users", icon: Send, href: "/notify" },
   { label: "User Management", icon: Users, href: "/users" },
   { label: "Post", icon: SquarePen, href: "/posts" },
   { label: "Reports", icon: FileText, href: "/reports" },

@@ -645,6 +645,86 @@ export const updateSettings = async (settings: Record<string, boolean | string>)
   }
 };
 
+export type UserNotificationRecord = {
+  id: string;
+  active?: boolean;
+  audience?: string;
+  createdAt?: string;
+  createdBy?: string;
+  expiresAt?: string;
+  logoUrl?: string;
+  message?: string;
+  type?: string;
+};
+
+const userNotificationLifetimeMs = 48 * 60 * 60 * 1000;
+const userNotificationPath = "notifications";
+
+const isActiveUserNotification = (notification: UserNotificationRecord, now = Date.now()) => {
+  const expiresAt = notification.expiresAt ? new Date(notification.expiresAt).getTime() : 0;
+  return notification.type === "admin_notify" && notification.active !== false && expiresAt > now;
+};
+
+export const createUserNotification = async (message: string) => {
+  try {
+    const createdDate = new Date();
+    const expiresDate = new Date(createdDate.getTime() + userNotificationLifetimeMs);
+
+    await push(ref(db, userNotificationPath), {
+      active: true,
+      audience: "users",
+      createdAt: createdDate.toISOString(),
+      createdBy: "admin",
+      expiresAt: expiresDate.toISOString(),
+      lifetimeHours: 48,
+      logoUrl: "/CityVoiceLogo.jpeg",
+      message,
+      type: "admin_notify",
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Error creating user notification:", error);
+    return false;
+  }
+};
+
+export const deleteUserNotification = async (id: string) => {
+  try {
+    await remove(ref(db, `${userNotificationPath}/${id}`));
+    return true;
+  } catch (error) {
+    console.error("Error deleting user notification:", error);
+    return false;
+  }
+};
+
+export const subscribeToUserNotifications = (callback: (notifications: UserNotificationRecord[]) => void) => {
+  return onValue(ref(db, userNotificationPath), (snapshot) => {
+    const data = snapshot.val() || {};
+    const now = Date.now();
+    const notifications = Object.entries(data)
+      .map(([id, notification]: [string, any]) => ({ id, ...notification }))
+      .filter((notification) => {
+        if (notification.type !== "admin_notify") return false;
+
+        if (!isActiveUserNotification(notification, now)) {
+          remove(ref(db, `${userNotificationPath}/${notification.id}`));
+          return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const aTime = new Date(a.createdAt || "").getTime();
+        const bTime = new Date(b.createdAt || "").getTime();
+        return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+      });
+
+    callback(notifications);
+  });
+};
+
 export type AuthorityRecord = {
   id: string;
   name?: string;

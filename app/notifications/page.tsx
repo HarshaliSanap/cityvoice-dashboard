@@ -4,9 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Bell, CheckCircle2, Clock, Search, ShieldAlert, UserRound } from "lucide-react";
 import Sidebar from "../components/Sidebar";
-import { subscribeToAccountBlockClaims } from "@/lib/services/dataService";
+import {
+  subscribeToAccountBlockClaims,
+  subscribeToUserNotifications,
+  type UserNotificationRecord,
+} from "@/lib/services/dataService";
 
-type NotificationFilter = "all" | "block_claims" | "blocked_users" | "open";
+type NotificationFilter = "all" | "user_notices" | "block_claims" | "blocked_users" | "open";
 
 type AccountBlockClaim = {
   id: string;
@@ -23,6 +27,7 @@ type AccountBlockClaim = {
 
 const filterOptions: { label: string; value: NotificationFilter }[] = [
   { label: "All", value: "all" },
+  { label: "User Notices", value: "user_notices" },
   { label: "Block Claims", value: "block_claims" },
   { label: "Currently Blocked", value: "blocked_users" },
   { label: "Open", value: "open" },
@@ -49,6 +54,7 @@ const isOpenClaim = (claim: AccountBlockClaim) => {
 
 export default function NotificationsPage() {
   const [claims, setClaims] = useState<AccountBlockClaim[]>([]);
+  const [userNotifications, setUserNotifications] = useState<UserNotificationRecord[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<NotificationFilter>("all");
 
@@ -60,13 +66,32 @@ export default function NotificationsPage() {
     return () => unsubscribe?.();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToUserNotifications((data) => {
+      setUserNotifications(data);
+    });
+
+    return () => unsubscribe?.();
+  }, []);
+
+  const filteredUserNotifications = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return userNotifications.filter((notification) => {
+      const matchesFilter = filter === "all" || filter === "user_notices";
+      const matchesSearch = !query || (notification.message || "").toLowerCase().includes(query);
+
+      return matchesFilter && matchesSearch;
+    });
+  }, [filter, search, userNotifications]);
+
   const filteredClaims = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return claims
       .filter((claim) => {
         const matchesFilter =
-          filter === "all" ||
+          (filter === "all" && true) ||
           filter === "block_claims" ||
           (filter === "blocked_users" && claim.userBlocked) ||
           (filter === "open" && isOpenClaim(claim));
@@ -84,6 +109,7 @@ export default function NotificationsPage() {
 
   const blockedClaimCount = claims.filter((claim) => claim.userBlocked).length;
   const openClaimCount = claims.filter((claim) => isOpenClaim(claim)).length;
+  const totalNotifications = claims.length + userNotifications.length;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
@@ -93,7 +119,7 @@ export default function NotificationsPage() {
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Notifications</h1>
-            <p className="mt-1 text-sm text-gray-500">Review Firebase alerts and account block claims</p>
+            <p className="mt-1 text-sm text-gray-500">Review Firebase alerts, user notices, and account block claims</p>
           </div>
 
           <div className="relative w-full sm:w-80">
@@ -111,8 +137,8 @@ export default function NotificationsPage() {
         <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div className="rounded-3xl bg-blue-600 p-6 text-white">
             <Bell size={22} className="mb-3 opacity-90" />
-            <p className="text-sm opacity-90">Total Claims</p>
-            <h2 className="mt-2 text-4xl font-bold">{claims.length}</h2>
+            <p className="text-sm opacity-90">Total Notifications</p>
+            <h2 className="mt-2 text-4xl font-bold">{totalNotifications}</h2>
           </div>
 
           <div className="rounded-3xl bg-orange-500 p-6 text-white">
@@ -134,7 +160,9 @@ export default function NotificationsPage() {
               const isActive = filter === option.value;
               const count =
                 option.value === "all"
-                  ? claims.length
+                  ? totalNotifications
+                  : option.value === "user_notices"
+                  ? userNotifications.length
                   : option.value === "blocked_users"
                   ? blockedClaimCount
                   : option.value === "open"
@@ -156,6 +184,54 @@ export default function NotificationsPage() {
             })}
           </div>
         </div>
+
+        <section className="mb-6 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-bold text-gray-800">User Notices</h2>
+            <Link
+              href="/notify"
+              className="inline-flex w-fit items-center gap-2 rounded-2xl bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100"
+            >
+              Send notice
+            </Link>
+          </div>
+
+          <div className="space-y-3">
+            {filteredUserNotifications.map((notification) => (
+              <article key={notification.id} className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                <div className="flex gap-3">
+                  <img
+                    src={notification.logoUrl || "/CityVoiceLogo.jpeg"}
+                    alt="CityVoice logo"
+                    className="h-12 w-12 shrink-0 rounded-2xl object-cover"
+                  />
+                  <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase text-blue-700">
+                        User Notice
+                      </span>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase text-gray-500">
+                        Expires {formatClaimDate(notification.expiresAt)}
+                      </span>
+                    </div>
+                    <p className="whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+                      {notification.message || "No message"}
+                    </p>
+                    <p className="mt-2 text-xs font-semibold text-gray-400">
+                      Created {formatClaimDate(notification.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            ))}
+
+            {filteredUserNotifications.length === 0 && (
+              <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 py-10 text-center text-sm text-gray-400">
+                No user notices found
+              </div>
+            )}
+          </div>
+        </section>
 
         <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
