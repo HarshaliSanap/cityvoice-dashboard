@@ -8,7 +8,9 @@ type AuthorityEmailPayload = {
   postCategory?: string;
   postDescription?: string;
   postImageUrl?: string;
+  postLatitude?: string;
   postLocation?: string;
+  postLongitude?: string;
   postReporter?: string;
   postTimestamp?: string;
 };
@@ -59,6 +61,8 @@ export async function POST(request: Request) {
     "",
     `Category: ${payload.postCategory || "General"}`,
     `Location: ${payload.postLocation || "Not provided"}`,
+    `Latitude: ${payload.postLatitude || "Not provided"}`,
+    `Longitude: ${payload.postLongitude || "Not provided"}`,
     `Reporter: ${payload.postReporter || "Anonymous"}`,
     `Submitted: ${payload.postTimestamp || "Not available"}`,
     "",
@@ -78,6 +82,8 @@ export async function POST(request: Request) {
       <table style="border-collapse: collapse; margin: 16px 0;">
         <tr><td style="padding: 4px 12px 4px 0; font-weight: 700;">Category</td><td>${payload.postCategory || "General"}</td></tr>
         <tr><td style="padding: 4px 12px 4px 0; font-weight: 700;">Location</td><td>${payload.postLocation || "Not provided"}</td></tr>
+        <tr><td style="padding: 4px 12px 4px 0; font-weight: 700;">Latitude</td><td>${payload.postLatitude || "Not provided"}</td></tr>
+        <tr><td style="padding: 4px 12px 4px 0; font-weight: 700;">Longitude</td><td>${payload.postLongitude || "Not provided"}</td></tr>
         <tr><td style="padding: 4px 12px 4px 0; font-weight: 700;">Reporter</td><td>${payload.postReporter || "Anonymous"}</td></tr>
         <tr><td style="padding: 4px 12px 4px 0; font-weight: 700;">Submitted</td><td>${payload.postTimestamp || "Not available"}</td></tr>
       </table>

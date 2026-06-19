@@ -118,6 +118,13 @@ const hasLongDescription = (post: Post) => getPostDescription(post).length > 72;
 const formatResponseCount = (count: number) => `${count} ${count === 1 ? "response" : "responses"}`;
 const getReporterName = (post: Post) => post.authorName || post.name || "Anonymous";
 
+const getPostTime = (timestamp?: string) => {
+  if (!timestamp) return 0;
+
+  const parsed = new Date(timestamp.replace(" ", "T")).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
 const getCoordinateValue = (value?: number | string | null) => {
   if (value === null || value === undefined || value === "") return "";
 
@@ -270,7 +277,7 @@ export default function PostsPage() {
     const matchesStatus = statusFilter === "All" || getPostStatus(post) === statusFilter;
 
     return matchesSearch && matchesStatus;
-  });
+  }).sort((a, b) => getPostTime(b.timestamp) - getPostTime(a.timestamp));
 
   const totalPages = Math.max(1, Math.ceil(filteredPosts.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
@@ -317,7 +324,9 @@ export default function PostsPage() {
           postCategory: selectedPost.category,
           postDescription: getPostDescription(selectedPost),
           postImageUrl: selectedPost.image_url,
+          postLatitude: getPostLatitude(selectedPost),
           postLocation: selectedPost.location,
+          postLongitude: getPostLongitude(selectedPost),
           postReporter: selectedPost.name,
           postTimestamp: selectedPost.timestamp,
         }),
