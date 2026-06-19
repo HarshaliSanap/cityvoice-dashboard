@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowLeft, Ban, CheckCircle, Image as ImageIcon, Mail, MapPin, MessageSquare, SquarePen, UserRound } from "lucide-react";
+import { useParams, useSearchParams } from "next/navigation";
+import { AlertTriangle, ArrowLeft, Ban, CheckCircle, Clock, History, Image as ImageIcon, Mail, MapPin, MessageSquare, SquarePen, UserRound, X } from "lucide-react";
 import { useAuth } from "../../components/AuthProvider";
 import Sidebar from "../../components/Sidebar";
-import { subscribeToPosts, subscribeToReplies, subscribeToUsers, updateUserBlocked } from "@/lib/services/dataService";
+import { subscribeToAccountBlockClaims, subscribeToPosts, subscribeToReplies, subscribeToUsers, updateUserBlocked } from "@/lib/services/dataService";
 
 type RawUser = {
   id: string;
@@ -17,6 +17,7 @@ type RawUser = {
   pincode?: string;
   blocked?: boolean;
   blockedAt?: string | null;
+  blockHistory?: Record<string, BlockHistoryItem>;
 };
 
 type RawPost = {
@@ -39,12 +40,58 @@ type Reply = {
   uid?: string;
 };
 
+type BlockHistoryItem = {
+  action?: string;
+  blocked?: boolean;
+  timestamp?: string;
+  updatedBy?: string;
+};
+
+type AccountBlockClaim = {
+  active?: boolean;
+  id: string;
+  description?: string;
+  resolvedAt?: string | null;
+  status?: string;
+  timestamp?: string;
+  userBlocked?: boolean;
+  userEmail?: string;
+  userId?: string;
+  userName?: string;
+  userPincode?: string;
+};
+
+type ProfileTab = "posts" | "claims";
+
+const getTimestampValue = (timestamp?: string) => {
+  if (!timestamp) return 0;
+
+  const parsed = new Date(timestamp.replace(" ", "T")).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const formatDateTime = (timestamp?: string) => {
+  const parsed = getTimestampValue(timestamp);
+  if (!parsed) return "No date";
+
+  return new Date(parsed).toLocaleString();
+};
+
+const isActiveClaim = (claim: AccountBlockClaim) => {
+  const status = String(claim.status || "new").toLowerCase();
+  return claim.active !== false && !["closed", "resolved", "dismissed", "done"].includes(status);
+};
+
 export default function UserProfilePage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const userId = params.id;
   const [users, setUsers] = useState<RawUser[]>([]);
   const [posts, setPosts] = useState<RawPost[]>([]);
   const [allReplies, setAllReplies] = useState<Record<string, Record<string, Reply>>>({});
+  const [claims, setClaims] = useState<AccountBlockClaim[]>([]);
+  const [activeTab, setActiveTab] = useState<ProfileTab>(searchParams.get("tab") === "claims" ? "claims" : "posts");
+  const [selectedClaim, setSelectedClaim] = useState<AccountBlockClaim | null>(null);
   const [isUpdatingBlock, setIsUpdatingBlock] = useState(false);
   const { isSuperAdmin } = useAuth();
 
@@ -61,10 +108,15 @@ export default function UserProfilePage() {
       setAllReplies(fetchedReplies);
     });
 
+    const unsubscribeClaims = subscribeToAccountBlockClaims((fetchedClaims: AccountBlockClaim[]) => {
+      setClaims(fetchedClaims);
+    });
+
     return () => {
       unsubscribeUsers?.();
       unsubscribePosts?.();
       unsubscribeReplies?.();
+      unsubscribeClaims?.();
     };
   }, []);
 
@@ -81,10 +133,29 @@ export default function UserProfilePage() {
     return count + (liveReplyCount || post.replies || 0);
   }, 0);
 
-  const resolvedPosts = userPosts.filter((post) => post.status === "Resolved").length;
   const displayName = user?.name || "Anonymous";
   const initial = displayName.charAt(0).toUpperCase();
   const isBlocked = Boolean(user?.blocked);
+  const userClaims = useMemo(() => {
+    if (!user) return [];
+
+    return claims
+      .filter((claim) => {
+        return (
+          claim.userId === user.id ||
+          Boolean(claim.userEmail && user.email && claim.userEmail.toLowerCase() === user.email.toLowerCase()) ||
+          Boolean(claim.userName && user.name && claim.userName.toLowerCase() === user.name.toLowerCase())
+        );
+      })
+      .sort((a, b) => getTimestampValue(b.timestamp) - getTimestampValue(a.timestamp));
+  }, [claims, user]);
+  const blockHistory = useMemo(() => {
+    if (!user?.blockHistory) return [];
+
+    return Object.entries(user.blockHistory)
+      .map(([id, item]) => ({ id, ...item }))
+      .sort((a, b) => getTimestampValue(b.timestamp) - getTimestampValue(a.timestamp));
+  }, [user]);
 
   const handleBlockToggle = async () => {
     if (!user) return;
@@ -171,9 +242,9 @@ export default function UserProfilePage() {
                     <p className="text-xs font-semibold uppercase text-gray-400">Responses</p>
                   </div>
                   <div className="rounded-2xl bg-orange-50 p-4 text-center">
-                    <SquarePen size={18} className="mx-auto mb-2 text-orange-500" />
-                    <p className="text-3xl font-bold text-orange-500">{resolvedPosts}</p>
-                    <p className="text-xs font-semibold uppercase text-gray-400">Resolved</p>
+                    <AlertTriangle size={18} className="mx-auto mb-2 text-orange-500" />
+                    <p className="text-3xl font-bold text-orange-500">{userClaims.length}</p>
+                    <p className="text-xs font-semibold uppercase text-gray-400">Claims</p>
                   </div>
                 </div>
               </div>
@@ -195,9 +266,29 @@ export default function UserProfilePage() {
             </section>
 
             <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <h2 className="mb-5 text-2xl font-bold text-gray-800">User Reports / Voices</h2>
+              <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-2xl font-bold text-gray-800">User Activity</h2>
+                <div className="flex w-fit rounded-2xl bg-gray-50 p-1">
+                  <button
+                    onClick={() => setActiveTab("posts")}
+                    className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+                      activeTab === "posts" ? "bg-blue-600 text-white" : "text-gray-500 hover:text-blue-700"
+                    }`}
+                  >
+                    Posts
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("claims")}
+                    className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+                      activeTab === "claims" ? "bg-blue-600 text-white" : "text-gray-500 hover:text-blue-700"
+                    }`}
+                  >
+                    Claims & History
+                  </button>
+                </div>
+              </div>
 
-              {userPosts.length > 0 ? (
+              {activeTab === "posts" && (userPosts.length > 0 ? (
                 <div className="space-y-4">
                   {userPosts.map((post) => (
                     <article key={post.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
@@ -238,6 +329,82 @@ export default function UserProfilePage() {
                 <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 py-16 text-center text-gray-400">
                   No reports posted yet
                 </div>
+              ))}
+
+              {activeTab === "claims" && (
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="space-y-4">
+                    {userClaims.length > 0 ? (
+                      userClaims.map((claim, index) => (
+                        <article key={claim.id} className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4">
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold uppercase text-orange-700">
+                                Claim #{userClaims.length - index}
+                              </span>
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase text-gray-500">
+                                {claim.status || "pending"}
+                              </span>
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                                  isActiveClaim(claim) ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700"
+                                }`}
+                              >
+                                {isActiveClaim(claim) ? "Active" : "Resolved"}
+                              </span>
+                            </div>
+                            <span className="text-xs font-semibold text-gray-400">{formatDateTime(claim.timestamp)}</span>
+                          </div>
+                          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+                            {claim.description || "No claim details provided"}
+                          </p>
+                          {claim.resolvedAt && (
+                            <p className="mt-3 text-xs font-semibold text-green-600">
+                              Resolved on {formatDateTime(claim.resolvedAt)}
+                            </p>
+                          )}
+                          <button
+                            onClick={() => setSelectedClaim(claim)}
+                            className="mt-4 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-700"
+                          >
+                            View details
+                          </button>
+                        </article>
+                      ))
+                    ) : (
+                      <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 py-16 text-center text-gray-400">
+                        No block claims found for this user
+                      </div>
+                    )}
+                  </div>
+
+                  <aside className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                      <History size={18} className="text-blue-600" />
+                      <h3 className="font-bold text-gray-800">Block History</h3>
+                    </div>
+                    <div className="space-y-3">
+                      {blockHistory.length > 0 ? (
+                        blockHistory.map((history) => (
+                          <div key={history.id} className="rounded-2xl bg-white p-3 text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className={`font-bold capitalize ${history.blocked ? "text-red-600" : "text-green-600"}`}>
+                                {history.action || (history.blocked ? "blocked" : "unblocked")}
+                              </span>
+                              <Clock size={14} className="text-gray-300" />
+                            </div>
+                            <p className="mt-1 text-xs font-semibold text-gray-400">{formatDateTime(history.timestamp)}</p>
+                            <p className="mt-1 text-xs text-gray-400">By {history.updatedBy || "admin"}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-400">
+                          No block/unblock history yet
+                        </div>
+                      )}
+                    </div>
+                  </aside>
+                </div>
               )}
             </section>
           </div>
@@ -247,6 +414,56 @@ export default function UserProfilePage() {
           </div>
         )}
       </main>
+
+      {selectedClaim && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Claim Details</h2>
+                <p className="mt-1 text-sm text-gray-500">{formatDateTime(selectedClaim.timestamp)}</p>
+              </div>
+              <button
+                onClick={() => setSelectedClaim(null)}
+                className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Close claim details"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+                <p className="mb-2 text-xs font-bold uppercase text-orange-600">Claim text</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+                  {selectedClaim.description || "No claim details provided"}
+                </p>
+              </div>
+
+              <div className="grid gap-3 text-sm text-gray-600 sm:grid-cols-2">
+                <div className="rounded-2xl bg-gray-50 p-3">
+                  <p className="text-xs font-bold uppercase text-gray-400">User</p>
+                  <p className="mt-1 break-words font-semibold">{selectedClaim.userName || displayName}</p>
+                </div>
+                <div className="rounded-2xl bg-gray-50 p-3">
+                  <p className="text-xs font-bold uppercase text-gray-400">Status</p>
+                  <p className="mt-1 font-semibold capitalize">
+                    {selectedClaim.status || "pending"} {isActiveClaim(selectedClaim) ? "(active)" : "(resolved)"}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-gray-50 p-3">
+                  <p className="text-xs font-bold uppercase text-gray-400">Email</p>
+                  <p className="mt-1 break-all font-semibold">{selectedClaim.userEmail || user?.email || "No email"}</p>
+                </div>
+                <div className="rounded-2xl bg-gray-50 p-3">
+                  <p className="text-xs font-bold uppercase text-gray-400">User ID</p>
+                  <p className="mt-1 break-all font-semibold">{selectedClaim.userId || user?.id || "N/A"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

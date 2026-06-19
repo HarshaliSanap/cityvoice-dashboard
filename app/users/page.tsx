@@ -36,9 +36,16 @@ type RawPost = {
 };
 
 type AccountBlockClaim = {
+  active?: boolean;
   id: string;
+  status?: string;
   userId?: string;
   userName?: string;
+};
+
+const isActiveClaim = (claim: AccountBlockClaim) => {
+  const status = String(claim.status || "new").toLowerCase();
+  return claim.active !== false && !["closed", "resolved", "dismissed", "done"].includes(status);
 };
 
 const userFilterOptions: { label: string; value: UserFilter }[] = [
@@ -64,9 +71,10 @@ export default function UserManagement() {
     let latestClaims: AccountBlockClaim[] = [];
 
     const updateUsers = () => {
-      const claimUserIds = new Set(latestClaims.map((claim) => claim.userId).filter(Boolean));
+      const activeClaims = latestClaims.filter(isActiveClaim);
+      const claimUserIds = new Set(activeClaims.map((claim) => claim.userId).filter(Boolean));
       const claimUserNames = new Set(
-        latestClaims.map((claim) => claim.userName?.toLowerCase()).filter((name): name is string => Boolean(name))
+        activeClaims.map((claim) => claim.userName?.toLowerCase()).filter((name): name is string => Boolean(name))
       );
 
       const mappedUsers = latestUsers.map((user) => {

@@ -20,8 +20,10 @@ import {
 } from "@/lib/services/dataService";
 
 type AccountBlockClaim = {
+  active?: boolean;
   id: string;
   description?: string;
+  status?: string;
   timestamp?: string;
   userBlocked?: boolean;
   userEmail?: string;
@@ -45,6 +47,45 @@ type DashboardNotification = {
   time: string;
   timestamp: string;
   title: string;
+};
+
+const getClaimTimestampValue = (timestamp?: string) => {
+  if (!timestamp) return 0;
+
+  const parsed = new Date(timestamp.replace(" ", "T")).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const getClaimUserKey = (claim: AccountBlockClaim) => {
+  return claim.userId || claim.userEmail?.toLowerCase() || claim.userName?.toLowerCase() || claim.id;
+};
+
+const isActiveClaim = (claim: AccountBlockClaim) => {
+  const status = String(claim.status || "new").toLowerCase();
+  return claim.active !== false && !["closed", "resolved", "dismissed", "done"].includes(status);
+};
+
+const getLatestClaimsByUser = (claims: AccountBlockClaim[]) => {
+  const claimsByUser: Record<string, { count: number; latest: AccountBlockClaim }> = {};
+
+  claims.filter(isActiveClaim).forEach((claim) => {
+    const key = getClaimUserKey(claim);
+    const existing = claimsByUser[key];
+
+    if (!existing || getClaimTimestampValue(claim.timestamp) > getClaimTimestampValue(existing.latest.timestamp)) {
+      claimsByUser[key] = {
+        count: existing?.count ? existing.count + 1 : 1,
+        latest: claim,
+      };
+      return;
+    }
+
+    existing.count += 1;
+  });
+
+  return Object.values(claimsByUser)
+    .sort((a, b) => getClaimTimestampValue(b.latest.timestamp) - getClaimTimestampValue(a.latest.timestamp))
+    .slice(0, 5);
 };
 
 export default function Dashboard() {
@@ -129,14 +170,14 @@ export default function Dashboard() {
       imageIcon: false,
     }));
 
-  const claimNotifications: DashboardNotification[] = accountBlockClaims.slice(0, 5).map((claim) => ({
+  const claimNotifications: DashboardNotification[] = getLatestClaimsByUser(accountBlockClaims).map(({ count, latest: claim }) => ({
     title: "Account block claim",
     time: claim.timestamp ? new Date(claim.timestamp.replace(" ", "T")).toLocaleString() : "Just now",
     timestamp: claim.timestamp || "",
     icon: "!",
     desc: `${claim.userName || "User"} says their account is blocked${
       claim.description ? `: ${claim.description.substring(0, 50)}` : ""
-    }`,
+    }${count > 1 ? ` (${count} claims)` : ""}`,
     href: claim.userId ? `/users/${claim.userId}` : "/users?filter=claims",
     imageIcon: false,
   }));

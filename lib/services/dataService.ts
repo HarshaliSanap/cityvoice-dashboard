@@ -243,11 +243,13 @@ const normalizeAccountBlockClaim = (
 
   return {
     id: claimId,
+    active: claim.active !== false,
     type: "account_block_claim",
     title: "Account block claim",
     description: reason,
+    resolvedAt: claim.resolvedAt || null,
     timestamp: claim.timestamp || claim.createdAt || claim.claimedAt || claim.date || "",
-    status: claim.status || "new",
+    status: claim.status || (claim.active === false ? "resolved" : "new"),
     userBlocked: Boolean(user?.blocked || claim.blocked),
     userEmail: user?.email || claim.email || claim.userEmail || "",
     userId: user?.id || userId,
@@ -829,6 +831,23 @@ export const updatePostAuthorityEscalation = async (id: string, authority: Autho
   }
 };
 
+const resolveUserBlockClaims = async (userId: string, timestamp: string) => {
+  const claimsSnapshot = await get(ref(db, `blockClaims/${userId}`));
+  if (!claimsSnapshot.exists()) return;
+
+  const claims = claimsSnapshot.val();
+  await Promise.all(
+    Object.keys(claims || {}).map((claimId) =>
+      update(ref(db, `blockClaims/${userId}/${claimId}`), {
+        active: false,
+        resolvedAt: timestamp,
+        resolvedBy: "admin",
+        status: "resolved",
+      })
+    )
+  );
+};
+
 export const updateUserBlocked = async (id: string, blocked: boolean) => {
   try {
     const timestamp = new Date().toISOString();
@@ -840,6 +859,15 @@ export const updateUserBlocked = async (id: string, blocked: boolean) => {
       unblockedAt: blocked ? null : timestamp,
       blockUpdatedAt: timestamp,
     });
+    await push(ref(db, `users/${id}/blockHistory`), {
+      action: blocked ? "blocked" : "unblocked",
+      blocked,
+      timestamp,
+      updatedBy: "admin",
+    });
+    if (!blocked) {
+      await resolveUserBlockClaims(id, timestamp);
+    }
     return true;
   } catch (error) {
     console.error("Error updating user block status:", error);

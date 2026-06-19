@@ -13,11 +13,24 @@ import {
 type NotificationFilter = "all" | "user_notices" | "block_claims" | "blocked_users" | "open";
 
 type AccountBlockClaim = {
+  active?: boolean;
   id: string;
   description?: string;
+  resolvedAt?: string | null;
   status?: string;
   timestamp?: string;
   type?: string;
+  userBlocked?: boolean;
+  userEmail?: string;
+  userId?: string;
+  userName?: string;
+  userPincode?: string;
+};
+
+type AccountBlockClaimGroup = {
+  claimCount: number;
+  claims: AccountBlockClaim[];
+  latestClaim: AccountBlockClaim;
   userBlocked?: boolean;
   userEmail?: string;
   userId?: string;
@@ -49,7 +62,51 @@ const formatClaimDate = (timestamp?: string) => {
 
 const isOpenClaim = (claim: AccountBlockClaim) => {
   const status = String(claim.status || "new").toLowerCase();
-  return !["closed", "resolved", "dismissed", "done"].includes(status);
+  return claim.active !== false && !["closed", "resolved", "dismissed", "done"].includes(status);
+};
+
+const getClaimUserKey = (claim: AccountBlockClaim) => {
+  return claim.userId || claim.userEmail?.toLowerCase() || claim.userName?.toLowerCase() || claim.id;
+};
+
+const groupClaimsByUser = (claims: AccountBlockClaim[]) => {
+  const groups: Record<string, AccountBlockClaimGroup> = {};
+
+  claims.forEach((claim) => {
+    const key = getClaimUserKey(claim);
+    const existing = groups[key];
+
+    if (!existing) {
+      groups[key] = {
+        claimCount: 1,
+        claims: [claim],
+        latestClaim: claim,
+        userBlocked: claim.userBlocked,
+        userEmail: claim.userEmail,
+        userId: claim.userId,
+        userName: claim.userName,
+        userPincode: claim.userPincode,
+      };
+      return;
+    }
+
+    existing.claims.push(claim);
+    existing.claimCount += 1;
+    existing.userBlocked = existing.userBlocked || claim.userBlocked;
+    existing.userEmail = existing.userEmail || claim.userEmail;
+    existing.userId = existing.userId || claim.userId;
+    existing.userName = existing.userName || claim.userName;
+    existing.userPincode = existing.userPincode || claim.userPincode;
+
+    if (getTimestampValue(claim.timestamp) > getTimestampValue(existing.latestClaim.timestamp)) {
+      existing.latestClaim = claim;
+    }
+  });
+
+  return Object.values(groups).map((group) => ({
+    ...group,
+    claims: group.claims.sort((a, b) => getTimestampValue(b.timestamp) - getTimestampValue(a.timestamp)),
+  }));
 };
 
 export default function NotificationsPage() {
@@ -85,31 +142,34 @@ export default function NotificationsPage() {
     });
   }, [filter, search, userNotifications]);
 
-  const filteredClaims = useMemo(() => {
+  const activeClaims = useMemo(() => claims.filter(isOpenClaim), [claims]);
+  const claimGroups = useMemo(() => groupClaimsByUser(activeClaims), [activeClaims]);
+
+  const filteredClaimGroups = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return claims
-      .filter((claim) => {
+    return claimGroups
+      .filter((group) => {
         const matchesFilter =
           (filter === "all" && true) ||
           filter === "block_claims" ||
-          (filter === "blocked_users" && claim.userBlocked) ||
-          (filter === "open" && isOpenClaim(claim));
+          (filter === "blocked_users" && group.userBlocked) ||
+          (filter === "open" && group.claims.some((item) => isOpenClaim(item)));
         const matchesSearch =
           !query ||
-          (claim.userName || "").toLowerCase().includes(query) ||
-          (claim.userEmail || "").toLowerCase().includes(query) ||
-          (claim.userId || "").toLowerCase().includes(query) ||
-          (claim.description || "").toLowerCase().includes(query);
+          (group.userName || "").toLowerCase().includes(query) ||
+          (group.userEmail || "").toLowerCase().includes(query) ||
+          (group.userId || "").toLowerCase().includes(query) ||
+          group.claims.some((item) => (item.description || "").toLowerCase().includes(query));
 
         return matchesFilter && matchesSearch;
       })
-      .sort((a, b) => getTimestampValue(b.timestamp) - getTimestampValue(a.timestamp));
-  }, [claims, filter, search]);
+      .sort((a, b) => getTimestampValue(b.latestClaim.timestamp) - getTimestampValue(a.latestClaim.timestamp));
+  }, [claimGroups, filter, search]);
 
-  const blockedClaimCount = claims.filter((claim) => claim.userBlocked).length;
-  const openClaimCount = claims.filter((claim) => isOpenClaim(claim)).length;
-  const totalNotifications = claims.length + userNotifications.length;
+  const blockedClaimCount = claimGroups.filter((group) => group.userBlocked).length;
+  const openClaimCount = claimGroups.filter((group) => group.claims.some((claim) => isOpenClaim(claim))).length;
+  const totalNotifications = claimGroups.length + userNotifications.length;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
@@ -167,7 +227,7 @@ export default function NotificationsPage() {
                   ? blockedClaimCount
                   : option.value === "open"
                   ? openClaimCount
-                  : claims.length;
+                  : claimGroups.length;
 
               return (
                 <button
@@ -246,8 +306,11 @@ export default function NotificationsPage() {
           </div>
 
           <div className="space-y-3">
-            {filteredClaims.map((claim) => (
-              <article key={claim.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+            {filteredClaimGroups.map((group) => {
+              const claim = group.latestClaim;
+
+              return (
+              <article key={getClaimUserKey(claim)} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                   <div className="min-w-0">
                     <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -257,11 +320,14 @@ export default function NotificationsPage() {
                       </span>
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase ${
-                          claim.userBlocked ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+                          group.userBlocked ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
                         }`}
                       >
-                        {claim.userBlocked ? <ShieldAlert size={13} /> : <CheckCircle2 size={13} />}
-                        {claim.userBlocked ? "User blocked" : "User active"}
+                        {group.userBlocked ? <ShieldAlert size={13} /> : <CheckCircle2 size={13} />}
+                        {group.userBlocked ? "User blocked" : "User active"}
+                      </span>
+                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase text-blue-700">
+                        {group.claimCount} {group.claimCount === 1 ? "claim" : "claims"}
                       </span>
                       <span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase text-gray-500">
                         {claim.status || "new"}
@@ -269,27 +335,27 @@ export default function NotificationsPage() {
                     </div>
 
                     <h3 className="break-words text-lg font-bold text-gray-800">
-                      {claim.userName || "Unknown user"} claimed account block issue
+                      {group.userName || "Unknown user"} claimed account block issue
                     </h3>
                     <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-600">
-                      {claim.description || "No claim details provided"}
+                      Latest: {claim.description || "No claim details provided"}
                     </p>
 
                     <div className="mt-4 grid gap-2 text-xs font-semibold text-gray-500 sm:grid-cols-3">
-                      <span className="break-all">Email: {claim.userEmail || "No email"}</span>
-                      <span className="break-all">User ID: {claim.userId || "N/A"}</span>
-                      <span>Pin: {claim.userPincode || "N/A"}</span>
+                      <span className="break-all">Email: {group.userEmail || "No email"}</span>
+                      <span className="break-all">User ID: {group.userId || "N/A"}</span>
+                      <span>Pin: {group.userPincode || "N/A"}</span>
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-3 lg:items-end">
                     <span className="text-xs font-semibold text-gray-400">{formatClaimDate(claim.timestamp)}</span>
-                    {claim.userId ? (
+                    {group.userId ? (
                       <Link
-                        href={`/users/${claim.userId}`}
+                        href={`/users/${group.userId}?tab=claims`}
                         className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-700"
                       >
-                        View user
+                        View history
                       </Link>
                     ) : (
                       <Link
@@ -302,9 +368,10 @@ export default function NotificationsPage() {
                   </div>
                 </div>
               </article>
-            ))}
+              );
+            })}
 
-            {filteredClaims.length === 0 && (
+            {filteredClaimGroups.length === 0 && (
               <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 py-16 text-center">
                 <Bell size={36} className="mx-auto mb-3 text-gray-300" />
                 <p className="font-semibold text-gray-500">No block claims found</p>

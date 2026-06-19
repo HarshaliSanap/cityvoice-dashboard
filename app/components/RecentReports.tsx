@@ -54,7 +54,7 @@ export default function RecentReports() {
     <div className="flex-1 rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark-readable-panel">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold text-gray-800 dark-readable-title">Recent Reports</h2>
+          <h2 className="font-semibold text-gray-800 dark-readable-title">Recent Post</h2>
           <p className="mt-1 text-xs text-gray-400 dark-readable-muted">Latest citizen posts with reporter details</p>
         </div>
         <span className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase text-blue-600 dark-readable-blue-pill">
@@ -125,7 +125,7 @@ export default function RecentReports() {
           ))
         ) : (
           <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-400 dark-readable-empty">
-            No reports found
+            No posts found
           </div>
         )}
       </div>
