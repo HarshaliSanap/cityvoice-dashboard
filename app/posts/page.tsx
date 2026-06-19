@@ -24,10 +24,20 @@ type Post = {
   id: string;
   authorAddress?: string | null;
   category?: string;
+  coordinates?: {
+    lat?: number | string;
+    latitude?: number | string;
+    lng?: number | string;
+    longitude?: number | string;
+  };
   description?: string;
   email?: string;
   image_url?: string;
+  lat?: number | string;
+  latitude?: number | string;
+  lng?: number | string;
   location?: string;
+  longitude?: number | string;
   name?: string;
   replies?: number;
   status?: PostStatus;
@@ -107,6 +117,25 @@ const hasLongDescription = (post: Post) => getPostDescription(post).length > 72;
 
 const formatResponseCount = (count: number) => `${count} ${count === 1 ? "response" : "responses"}`;
 const getReporterName = (post: Post) => post.authorName || post.name || "Anonymous";
+
+const getCoordinateValue = (value?: number | string | null) => {
+  if (value === null || value === undefined || value === "") return "";
+
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) return String(value);
+
+  return numericValue.toFixed(6);
+};
+
+const getPostLatitude = (post: Post) => {
+  return getCoordinateValue(post.latitude || post.lat || post.coordinates?.latitude || post.coordinates?.lat);
+};
+
+const getPostLongitude = (post: Post) => {
+  return getCoordinateValue(post.longitude || post.lng || post.coordinates?.longitude || post.coordinates?.lng);
+};
+
+const hasPostCoordinates = (post: Post) => Boolean(getPostLatitude(post) || getPostLongitude(post));
 
 export default function PostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -504,6 +533,12 @@ export default function PostsPage() {
                     <MapPin size={15} className="text-gray-400" />
                     <span className="truncate">{post.location || "N/A"}</span>
                   </div>
+                  {hasPostCoordinates(post) && (
+                    <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-gray-400">
+                      <span className="truncate">Lat: {getPostLatitude(post) || "N/A"}</span>
+                      <span className="truncate">Long: {getPostLongitude(post) || "N/A"}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 flex-wrap items-center gap-3">
                       <div className="flex items-center gap-2">
@@ -637,6 +672,12 @@ export default function PostsPage() {
                   <div className="flex min-w-0 items-center gap-2">
                     <MapPin size={15} className="shrink-0 text-gray-400" />
                     <span className="truncate">{selectedPost.location || "N/A"}</span>
+                  </div>
+                  <div className="flex min-w-0 items-center gap-2 rounded-xl p-2">
+                    <MapPin size={15} className="shrink-0 text-gray-400" />
+                    <span className="truncate">
+                      Lat: {getPostLatitude(selectedPost) || "N/A"} / Long: {getPostLongitude(selectedPost) || "N/A"}
+                    </span>
                   </div>
                   <button
                     onClick={() => setActivePanel("replies")}
