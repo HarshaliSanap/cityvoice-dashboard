@@ -15,3 +15,182 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
 }
+
+.cityvoice-dark body {
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+.cityvoice-dark .bg-\[\#f8fafc\] {
+  background-color: #0f172a !important;
+}
+
+.cityvoice-dark .bg-white {
+  background-color: #111827 !important;
+}
+
+.cityvoice-dark .bg-gray-50,
+.cityvoice-dark .bg-gray-50\/50,
+.cityvoice-dark .bg-gray-50\/60 {
+  background-color: #1f2937 !important;
+}
+
+.cityvoice-dark .border-gray-50,
+.cityvoice-dark .border-gray-100,
+.cityvoice-dark .border-gray-200 {
+  border-color: #263244 !important;
+}
+
+.cityvoice-dark .text-gray-800,
+.cityvoice-dark .text-gray-700,
+.cityvoice-dark .text-gray-600 {
+  color: #e5e7eb !important;
+}
+
+.cityvoice-dark .text-gray-500,
+.cityvoice-dark .text-gray-400 {
+  color: #cbd5e1 !important;
+}
+
+.cityvoice-dark .text-blue-600,
+.cityvoice-dark .text-blue-700 {
+  color: #bfdbfe !important;
+}
+
+.cityvoice-dark .text-green-600,
+.cityvoice-dark .text-green-700 {
+  color: #bbf7d0 !important;
+}
+
+.cityvoice-dark .text-orange-600,
+.cityvoice-dark .text-orange-700 {
+  color: #fed7aa !important;
+}
+
+.cityvoice-dark .text-red-600,
+.cityvoice-dark .text-red-700 {
+  color: #fecaca !important;
+}
+
+.cityvoice-dark .text-yellow-600,
+.cityvoice-dark .text-yellow-700 {
+  color: #fde68a !important;
+}
+
+.cityvoice-dark .bg-blue-50,
+.cityvoice-dark .bg-blue-100 {
+  background-color: #1e3a8a !important;
+}
+
+.cityvoice-dark .bg-green-50,
+.cityvoice-dark .bg-green-100 {
+  background-color: #14532d !important;
+}
+
+.cityvoice-dark .bg-orange-50,
+.cityvoice-dark .bg-orange-100 {
+  background-color: #7c2d12 !important;
+}
+
+.cityvoice-dark .bg-red-50,
+.cityvoice-dark .bg-red-100 {
+  background-color: #7f1d1d !important;
+}
+
+.cityvoice-dark .bg-yellow-50,
+.cityvoice-dark .bg-yellow-100 {
+  background-color: #713f12 !important;
+}
+
+.cityvoice-dark .border-gray-300 {
+  border-color: #475569 !important;
+}
+
+.cityvoice-dark .hover\:bg-gray-50:hover,
+.cityvoice-dark .hover\:bg-gray-50\/50:hover,
+.cityvoice-dark .hover\:bg-gray-100:hover {
+  background-color: #172033 !important;
+}
+
+.cityvoice-dark .hover\:bg-blue-50:hover,
+.cityvoice-dark .hover\:bg-blue-100:hover {
+  background-color: #1e40af !important;
+}
+
+.cityvoice-dark .hover\:bg-red-50:hover {
+  background-color: #7f1d1d !important;
+}
+
+.cityvoice-dark .hover\:text-gray-700:hover,
+.cityvoice-dark .hover\:text-gray-900:hover {
+  color: #f8fafc !important;
+}
+
+.cityvoice-dark input,
+.cityvoice-dark textarea,
+.cityvoice-dark select {
+  background-color: #0f172a !important;
+  border-color: #263244 !important;
+  color: #e5e7eb !important;
+}
+
+.cityvoice-dark input::placeholder,
+.cityvoice-dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+.cityvoice-dark .shadow-sm,
+.cityvoice-dark .shadow-md,
+.cityvoice-dark .shadow-lg,
+.cityvoice-dark .shadow-xl,
+.cityvoice-dark .shadow-2xl {
+  box-shadow: 0 16px 45px rgb(0 0 0 / 0.28) !important;
+}
+
+.cityvoice-dark .dark-readable-panel {
+  background-color: #111827 !important;
+  border-color: #263244 !important;
+}
+
+.cityvoice-dark .dark-readable-row {
+  background-color: #111827 !important;
+  border-color: #263244 !important;
+}
+
+.cityvoice-dark .dark-readable-row:hover {
+  background-color: #172033 !important;
+}
+
+.cityvoice-dark .dark-readable-title {
+  color: #f8fafc !important;
+}
+
+.cityvoice-dark .dark-readable-body {
+  color: #dbe4ef !important;
+}
+
+.cityvoice-dark .dark-readable-muted,
+.cityvoice-dark .dark-readable-meta {
+  color: #a8b3c7 !important;
+}
+
+.cityvoice-dark .dark-readable-chip {
+  background-color: #243044 !important;
+  color: #dbe4ef !important;
+}
+
+.cityvoice-dark .dark-readable-blue-pill,
+.cityvoice-dark .dark-readable-avatar {
+  background-color: #1d4ed8 !important;
+  color: #eff6ff !important;
+}
+
+.cityvoice-dark .dark-readable-orange-pill {
+  background-color: #7c2d12 !important;
+  color: #fed7aa !important;
+}
+
+.cityvoice-dark .dark-readable-empty {
+  border-color: #334155 !important;
+  color: #a8b3c7 !important;
+}

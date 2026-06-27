@@ -6,11 +6,11 @@ export default function UserActivityChart() {
   const { chartData } = useDashboardData();
 
   return (
-    <div className="bg-white rounded-xl p-5 flex-1 shadow-sm border border-gray-100">
+    <div className="min-w-0 bg-white rounded-xl p-5 flex-1 shadow-sm border border-gray-100">
       <h2 className="font-semibold text-gray-800 mb-4">User Activity</h2>
-      <div className="h-[220px] w-full">
+      <div className="h-[220px] min-h-[220px] min-w-0 w-full">
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />

@@ -35,7 +35,7 @@ export default function RealTimeStats() {
         color="bg-orange-500" 
       />
       <StatsCard 
-        title="Total Replies" 
+        title="Total Responses" 
         value={stats.replies}   
         icon={CheckCircle}   
         color="bg-green-600" 

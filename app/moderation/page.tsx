@@ -1,23 +1,55 @@
 "use client";
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
-import { subscribeToPosts, deletePost } from "@/lib/services/dataService";
-import { Shield, Trash2, Search, Filter, AlertCircle } from "lucide-react";
+import { subscribeToPostsWithUsers, deletePost } from "@/lib/services/dataService";
+import { Trash2, Search, Filter, AlertCircle } from "lucide-react";
+
+type ModerationStatus = "Pending" | "In Review" | "Escalated to Authority" | "Rejected" | "Resolved";
+type ModerationFilter = "All" | ModerationStatus;
+
+type ModerationReport = {
+  id: string;
+  authorBlocked?: boolean;
+  category?: string;
+  description?: string;
+  location?: string;
+  name?: string;
+  replies?: number;
+  status?: string;
+  supports?: number;
+  authorityEmail?: string;
+  authorityName?: string;
+};
+
+const statusOptions: ModerationStatus[] = ["Pending", "In Review", "Escalated to Authority", "Rejected", "Resolved"];
+
+const statusStyles: Record<ModerationStatus, string> = {
+  Pending: "bg-orange-50 text-orange-600",
+  "In Review": "bg-blue-50 text-blue-600",
+  "Escalated to Authority": "bg-purple-50 text-purple-600",
+  Rejected: "bg-red-50 text-red-600",
+  Resolved: "bg-green-50 text-green-600",
+};
 
 export default function ModerationPage() {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<ModerationReport[]>([]);
   const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<ModerationFilter>("All");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = subscribeToPosts((data) => {
+    const unsubscribe = subscribeToPostsWithUsers((data: ModerationReport[]) => {
       setReports(data);
     });
     return () => unsubscribe && unsubscribe();
   }, []);
 
+  const getStatus = (report: ModerationReport): ModerationStatus => {
+    return statusOptions.includes(report.status as ModerationStatus) ? (report.status as ModerationStatus) : "Pending";
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to PERMANENTLY delete this report and all its replies? This action cannot be undone.")) return;
+    if (!confirm("Are you sure you want to PERMANENTLY delete this report and all its responses? This action cannot be undone.")) return;
     
     setIsDeleting(id);
     const success = await deletePost(id);
@@ -28,10 +60,17 @@ export default function ModerationPage() {
     }
   };
 
-  const filtered = reports.filter(r => 
-    (r.description || "").toLowerCase().includes(search.toLowerCase()) ||
-    (r.name || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = reports.filter((r) => {
+    const query = search.toLowerCase();
+    const matchesSearch =
+      (r.description || "").toLowerCase().includes(query) ||
+      (r.category || "").toLowerCase().includes(query) ||
+      (r.location || "").toLowerCase().includes(query) ||
+      (r.name || "").toLowerCase().includes(query);
+    const matchesStatus = filterStatus === "All" || getStatus(r) === filterStatus;
+
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="flex min-h-screen bg-[#f8fafc]">
@@ -59,6 +98,25 @@ export default function ModerationPage() {
           </div>
         </div>
 
+        <div className="mb-6 flex flex-wrap gap-2">
+          {(["All", ...statusOptions] as ModerationFilter[]).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+                filterStatus === status
+                  ? "bg-gray-900 text-white shadow-md"
+                  : "border border-gray-200 bg-white text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              {status}
+              <span className={`ml-2 text-xs ${filterStatus === status ? "text-gray-200" : "text-gray-400"}`}>
+                {status === "All" ? reports.length : reports.filter((report) => getStatus(report) === status).length}
+              </span>
+            </button>
+          ))}
+        </div>
+
         <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-wider">
@@ -77,6 +135,11 @@ export default function ModerationPage() {
                       <div className="flex flex-col">
                         <span className="font-bold text-gray-800 line-clamp-1">{r.description}</span>
                         <span className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-widest">{r.category}</span>
+                        {r.authorityEmail && (
+                          <span className="mt-1 text-[10px] font-semibold text-blue-600">
+                            Sent to {r.authorityName || r.authorityEmail}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -85,11 +148,19 @@ export default function ModerationPage() {
                           {r.name?.charAt(0) || "A"}
                         </div>
                         <span className="text-gray-600 font-medium">{r.name || "Anonymous"}</span>
+                        {r.authorBlocked && (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-600">
+                            Blocked
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${r.replies > 0 ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
-                        {r.replies > 0 ? 'Active' : 'Pending'}
+                      <span
+                        title={getStatus(r)}
+                        className={`inline-flex min-w-[150px] justify-center whitespace-nowrap rounded-lg px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${statusStyles[getStatus(r)]}`}
+                      >
+                        {getStatus(r)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
