@@ -1,0 +1,42 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "admin_profiles": {
+      ".read": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'",
+      "$uid": {
+        ".write": "auth != null && (auth.uid == $uid || root.child('admin_profiles').child(auth.uid).child('role').val() == 'developer' || root.child('admin_profiles').child(auth.uid).child('role').val() == 'super_admin')"
+      }
+    },
+
+    "users": {
+      ".read": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'",
+      "$uid": {
+        ".write": "auth != null && (auth.uid == $uid || root.child('admin_profiles').child(auth.uid).child('role').val() == 'developer' || root.child('admin_profiles').child(auth.uid).child('role').val() == 'super_admin')"
+      }
+    },
+
+    "admin_otp_challenges": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+
+    "admin_login_history": {
+      ".read": "auth != null && (root.child('admin_profiles').child(auth.uid).child('role').val() == 'developer' || root.child('admin_profiles').child(auth.uid).child('role').val() == 'super_admin')",
+      ".write": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'"
+    },
+
+    "admin_settings": {
+      ".read": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'",
+      ".write": "auth != null && (root.child('admin_profiles').child(auth.uid).child('role').val() == 'developer' || root.child('admin_profiles').child(auth.uid).child('role').val() == 'super_admin')"
+    },
+
+    "$other": {
+      ".read": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'",
+      ".write": "auth != null && (root.child('admin_profiles').child(auth.uid).child('role').val() == 'developer' || root.child('admin_profiles').child(auth.uid).child('role').val() == 'super_admin' || root.child('admin_profiles').child(auth.uid).child('role').val() == 'admin')"
+    }
+  }
+}
