@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Lock, Mail, ShieldCheck } from "lucide-react";
+import { KeyRound, Lock, Mail } from "lucide-react";
 import {
   completeAdminLogin,
   getDashboardPathForRole,
@@ -21,6 +21,24 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOtpStep, setIsOtpStep] = useState(false);
+  const [clock, setClock] = useState("--:--:--");
+
+  useEffect(() => {
+    const updateClock = () => {
+      setClock(
+        new Date().toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        })
+      );
+    };
+
+    updateClock();
+    const interval = window.setInterval(updateClock, 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const sendOtp = async (profile: AdminProfile) => {
     const idToken = await getCurrentUserIdToken();
@@ -92,38 +110,67 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f8fafc]">
-      <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_480px]">
-        <section className="flex items-center bg-navy px-8 py-12 text-white lg:px-16">
-          <div className="max-w-2xl">
-            <div className="mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600">
-              <ShieldCheck size={32} />
+    <main className="min-h-screen overflow-hidden bg-[#0e1420]">
+      <div className="flex min-h-screen">
+        <section className="relative hidden min-w-0 flex-[1_1_auto] overflow-hidden bg-[#0e1420] px-12 py-12 text-white lg:flex lg:w-[70vw] lg:flex-col lg:justify-between xl:px-20">
+          <div className="pointer-events-none absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(180deg,transparent,black_22%,black_78%,transparent)]" />
+          <div className="pointer-events-none absolute right-0 top-0 h-[420px] w-[620px] rounded-full bg-blue-500/10 blur-3xl" />
+
+          <div className="relative z-10 flex items-center gap-3">
+            <img
+              src="/CityVoiceLogo.jpeg"
+              alt="CityVoice logo"
+              className="h-12 w-12 rounded-2xl object-cover shadow-sm ring-1 ring-white/15"
+            />
+            <div>
+              <p className="text-lg font-bold tracking-wide text-slate-100">CityVoice</p>
+              <p className="mt-1 text-[12px] font-bold uppercase tracking-[0.28em] text-blue-300/70">Control room</p>
             </div>
-            <h1 className="text-4xl font-bold tracking-normal sm:text-5xl">CityVoice Admin</h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-200">
-              Sign in to manage reports, citizens, authorities, settings, and role-based admin access.
+          </div>
+
+          <div className="relative z-10 max-w-[760px]">
+            <h1 className="text-[clamp(4rem,6vw,6.4rem)] font-bold leading-[1.05] tracking-normal">
+              The city, <span className="text-blue-400">on one</span>
+              <br />
+              <span className="text-blue-400">desk.</span>
+            </h1>
+            <p className="mt-8 max-w-[590px] text-xl leading-9 text-blue-100/80">
+              Sign in to track reports, coordinate response, and keep civic operations moving.
             </p>
-            <div className="mt-10 grid gap-3 text-sm font-semibold text-slate-200 sm:grid-cols-2">
-              <span className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">Developer: highest access</span>
-              <span className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">Super admin: full controls</span>
-              <span className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">Admin: no block actions</span>
+          </div>
+
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-5 border-t border-white/10 pt-8">
+            <div className="flex items-center gap-3">
+              <span className="live-dot h-2 w-2 rounded-full bg-amber-400" />
+              <div>
+                <p className="text-[12px] font-bold uppercase tracking-[0.28em] text-blue-300/70">Live city desk</p>
+                <p className="mt-2 text-base text-blue-100/80">Operating normally</p>
+              </div>
             </div>
+
+            <svg className="hidden h-10 w-52 sm:block" viewBox="0 0 208 40" fill="none" aria-hidden="true">
+              <path className="beat-line" d="M0 20H54L66 7L82 33L98 20H208" stroke="#4C7CFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+
+            <span className="font-mono text-sm text-blue-200/70">{clock}</span>
           </div>
         </section>
 
-        <section className="flex items-center justify-center px-6 py-10">
-          <form onSubmit={isOtpStep ? handleOtpSubmit : handleSubmit} className="w-full max-w-md rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
+        <section className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-white/90 px-7 py-10 backdrop-blur-xl lg:w-[30vw] lg:min-w-[430px]">
+          <div className="pointer-events-none absolute -right-24 top-20 h-64 w-64 rounded-full bg-blue-100/70 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 left-8 h-64 w-64 rounded-full bg-slate-200/80 blur-3xl" />
+          <form onSubmit={isOtpStep ? handleOtpSubmit : handleSubmit} className="relative z-10 w-full max-w-md rounded-[2rem] bg-white/70 p-8 shadow-2xl shadow-slate-200/60 ring-1 ring-white/80 backdrop-blur-xl">
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-800">{isOtpStep ? "Verify OTP" : "Login"}</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                {isOtpStep ? "Enter the 6-digit code sent to your admin email." : "Use your developer, super admin, or admin account."}
+              <h2 className="text-4xl font-bold tracking-normal text-[#12151c]">{isOtpStep ? "Verify OTP" : "Welcome back"}</h2>
+              <p className="mt-4 text-base leading-7 text-gray-500">
+                {isOtpStep ? "Enter the 6-digit code sent to your admin email." : "Sign in with your admin account to continue."}
               </p>
             </div>
 
             {!isOtpStep ? (
               <>
-                <label className="mb-4 block">
-                  <span className="mb-2 block text-xs font-bold uppercase text-gray-400">Email</span>
+                <label className="mb-5 block">
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-gray-400">Email</span>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                     <input
@@ -131,14 +178,14 @@ export default function LoginPage() {
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       required
-                      className="w-full rounded-2xl border border-gray-100 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-blue-400 focus:bg-white"
+                      className="h-14 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-12 pr-4 text-base text-gray-900 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                       placeholder="admin@cityvoice.gov"
                     />
                   </div>
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-xs font-bold uppercase text-gray-400">Password</span>
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-gray-400">Password</span>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                     <input
@@ -147,15 +194,15 @@ export default function LoginPage() {
                       onChange={(event) => setPassword(event.target.value)}
                       required
                       minLength={6}
-                      className="w-full rounded-2xl border border-gray-100 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-blue-400 focus:bg-white"
-                      placeholder="Password"
+                      className="h-14 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-12 pr-4 text-base text-gray-900 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                      placeholder="Enter your password"
                     />
                   </div>
                 </label>
               </>
             ) : (
               <label className="block">
-                <span className="mb-2 block text-xs font-bold uppercase text-gray-400">OTP Code</span>
+                <span className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-gray-400">OTP Code</span>
                 <div className="relative">
                   <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                   <input
@@ -165,7 +212,7 @@ export default function LoginPage() {
                     inputMode="numeric"
                     minLength={6}
                     maxLength={6}
-                    className="w-full rounded-2xl border border-gray-100 bg-gray-50 py-3 pl-11 pr-4 text-sm tracking-[0.25em] outline-none transition-colors focus:border-blue-400 focus:bg-white"
+                    className="h-14 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-12 pr-4 text-base tracking-[0.25em] text-gray-900 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                     placeholder="000000"
                   />
                 </div>
@@ -173,7 +220,7 @@ export default function LoginPage() {
             )}
 
             {message && (
-              <p className={`mt-4 rounded-2xl px-4 py-3 text-sm font-semibold ${
+              <p className={`mt-5 rounded-xl px-4 py-3 text-sm font-semibold ${
                 message.includes("sent") ? "bg-blue-50 text-blue-700" : "bg-red-50 text-red-600"
               }`}>
                 {message}
@@ -183,7 +230,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-6 w-full rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-wait disabled:opacity-70"
+              className="mt-8 h-15 w-full rounded-2xl bg-[#0e1420] px-5 py-4 text-base font-bold text-white transition-colors hover:bg-[#1c2536] disabled:cursor-wait disabled:opacity-70"
             >
               {isSubmitting ? (isOtpStep ? "Verifying..." : "Signing in...") : isOtpStep ? "Verify and continue" : "Sign in"}
             </button>
@@ -193,18 +240,60 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleResendOtp}
                 disabled={isSubmitting}
-                className="mt-3 w-full rounded-2xl border border-blue-100 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-wait disabled:opacity-70"
+                className="mt-3 h-12 w-full rounded-xl border border-blue-100 bg-blue-50 px-5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-wait disabled:opacity-70"
               >
                 Resend OTP
               </button>
             )}
 
-            <p className="mt-5 text-center text-sm text-gray-500">
+            <p className="mt-6 text-center text-sm leading-6 text-gray-400">
               Need access? Ask a Developer or Super Admin to register your account.
             </p>
           </form>
         </section>
       </div>
+      <style jsx>{`
+        .live-dot {
+          box-shadow: 0 0 0 0 rgba(242, 169, 59, 0.58);
+          animation: livePulse 2s infinite;
+        }
+
+        .beat-line {
+          fill: none;
+          stroke-dasharray: 320;
+          stroke-dashoffset: 320;
+          animation: drawBeat 2.2s ease-out forwards, moveBeat 3s 2.2s ease-in-out infinite;
+          transform-origin: center;
+        }
+
+        @keyframes livePulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(242, 169, 59, 0.58);
+          }
+          70% {
+            box-shadow: 0 0 0 11px rgba(242, 169, 59, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(242, 169, 59, 0);
+          }
+        }
+
+        @keyframes drawBeat {
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+
+        @keyframes moveBeat {
+          0%,
+          100% {
+            transform: translateX(0);
+          }
+          50% {
+            transform: translateX(-8px);
+          }
+        }
+      `}</style>
     </main>
   );
 }

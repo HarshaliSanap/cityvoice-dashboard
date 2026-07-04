@@ -289,17 +289,8 @@ export const updateAdminAccount = async (
 };
 
 export const deleteAdminAccount = async (uid: string) => {
-  const updatedAt = new Date().toISOString();
-  await update(ref(db, `${adminProfilesPath}/${uid}`), {
-    status: "disabled",
-    deletedAt: updatedAt,
-    updatedAt,
-  });
-  await update(ref(db, `${usersPath}/${uid}`), {
-    status: "disabled",
-    deleted_at: updatedAt,
-    updated_at: updatedAt,
-  });
+  await remove(ref(db, `${adminProfilesPath}/${uid}`));
+  await remove(ref(db, `${usersPath}/${uid}`));
 };
 
 export const logoutAdmin = async () => {

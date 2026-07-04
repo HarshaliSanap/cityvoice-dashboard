@@ -13,7 +13,51 @@
     "users": {
       ".read": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'",
       "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin_profiles').child(auth.uid).child('status').val() == 'active')",
         ".write": "auth != null && (auth.uid == $uid || root.child('admin_profiles').child(auth.uid).child('role').val() == 'developer' || root.child('admin_profiles').child(auth.uid).child('role').val() == 'super_admin')"
+      }
+    },
+
+    "posts": {
+      ".read": "auth != null",
+      "$postId": {
+        ".write": "auth != null && (root.child('admin_profiles').child(auth.uid).child('status').val() == 'active' || (!data.exists() && (newData.child('uid').val() == auth.uid || newData.child('userId').val() == auth.uid)) || data.child('uid').val() == auth.uid || data.child('userId').val() == auth.uid)"
+      }
+    },
+
+    "replies": {
+      ".read": "auth != null",
+      "$postId": {
+        "$replyId": {
+          ".write": "auth != null && (root.child('admin_profiles').child(auth.uid).child('status').val() == 'active' || !data.exists() || data.child('uid').val() == auth.uid)"
+        }
+      }
+    },
+
+    "notifications": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'"
+    },
+
+    "userReports": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin_profiles').child(auth.uid).child('status').val() == 'active')",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+
+    "userBlocks": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin_profiles').child(auth.uid).child('status').val() == 'active')",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+
+    "blockClaims": {
+      ".read": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admin_profiles').child(auth.uid).child('status').val() == 'active')",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admin_profiles').child(auth.uid).child('status').val() == 'active')"
       }
     },
 
@@ -36,7 +80,7 @@
 
     "$other": {
       ".read": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'",
-      ".write": "auth != null && (root.child('admin_profiles').child(auth.uid).child('role').val() == 'developer' || root.child('admin_profiles').child(auth.uid).child('role').val() == 'super_admin' || root.child('admin_profiles').child(auth.uid).child('role').val() == 'admin')"
+      ".write": "auth != null && root.child('admin_profiles').child(auth.uid).child('status').val() == 'active'"
     }
   }
 }

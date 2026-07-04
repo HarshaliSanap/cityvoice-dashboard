@@ -109,11 +109,11 @@ export default function CredentialsPage() {
       return;
     }
 
-    if (!confirm(`Disable ${profile.name}'s ${getAdminRoleLabel(profile.role)} account?`)) return;
+    if (!confirm(`Delete ${profile.name}'s ${getAdminRoleLabel(profile.role)} account from the dashboard?`)) return;
 
     try {
       await deleteAdminAccount(profile.uid);
-      setMessage("Account disabled successfully.");
+      setMessage("Account deleted successfully.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to delete account.");
     }

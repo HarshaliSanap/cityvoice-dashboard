@@ -11,7 +11,7 @@ import {
   signupAdmin,
   type AdminRole,
 } from "@/lib/services/authService";
-import { Lock, Mail, ShieldCheck, UserPlus, UserRound } from "lucide-react";
+import { Lock, Mail, UserPlus, UserRound } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -85,7 +85,11 @@ export default function SignupPage() {
         <Sidebar />
         <main className="flex flex-1 items-center justify-center p-8">
           <div className="max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-            <ShieldCheck className="mx-auto mb-4 text-gray-300" size={44} />
+            <img
+              src="/CityVoiceLogo.jpeg"
+              alt="CityVoice logo"
+              className="mx-auto mb-4 h-16 w-16 rounded-2xl object-cover shadow-sm"
+            />
             <h1 className="text-xl font-bold text-gray-800">Access denied</h1>
             <p className="mt-2 text-sm leading-6 text-gray-500">
               Admin users cannot create accounts or access role management pages.
@@ -107,13 +111,20 @@ export default function SignupPage() {
       <Sidebar />
       <main className="flex-1 overflow-y-auto p-8">
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Register User</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {adminProfile.role === "developer"
-                ? "Developer can create and manage Super Admin and Admin accounts."
-                : "Super Admin can create and manage Admin accounts."}
-            </p>
+          <div className="flex items-center gap-4">
+            <img
+              src="/CityVoiceLogo.jpeg"
+              alt="CityVoice logo"
+              className="h-14 w-14 rounded-2xl object-cover shadow-sm"
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Register User</h1>
+              <p className="mt-1 text-sm text-gray-500">
+                {adminProfile.role === "developer"
+                  ? "Developer can create and manage Super Admin and Admin accounts."
+                  : "Super Admin can create and manage Admin accounts."}
+              </p>
+            </div>
           </div>
           <div className="inline-flex w-fit items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">
             <UserPlus size={18} />

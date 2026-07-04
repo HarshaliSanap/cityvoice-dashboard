@@ -13,8 +13,15 @@ export const getStats = async () => {
     }
     if (postsSnapshot.exists()) {
       const postsData = postsSnapshot.val();
-      stats.posts = Object.keys(postsData).length;
-      stats.pending = Object.values(postsData).filter((p: any) => !p.status || p.status === "Pending").length;
+      const users = usersSnapshot.exists()
+        ? Object.entries(usersSnapshot.val()).map(([id, value]: [string, any]) => ({ id, ...value }))
+        : [];
+      const { usersById, usersByName, usersByEmail } = buildUserIndexes(users);
+      const visiblePosts = Object.entries(postsData)
+        .map(([id, post]: [string, any]) => ({ id, ...post }))
+        .filter((post) => hasExistingPostAuthor(post, usersById, usersByName, usersByEmail));
+      stats.posts = visiblePosts.length;
+      stats.pending = visiblePosts.filter((p: any) => !p.status || p.status === "Pending").length;
     }
     if (repliesSnapshot.exists()) {
       const data = repliesSnapshot.val();
@@ -36,22 +43,33 @@ export const subscribeToStats = (callback: (stats: any) => void) => {
   const repliesRef = ref(db, 'replies');
 
   let stats = { users: 0, posts: 0, replies: 0, pending: 0 };
+  let latestUsers: any[] = [];
+  let latestPosts: any[] = [];
   const updateStats = () => callback({ ...stats });
+  const updatePostStats = () => {
+    const { usersById, usersByName, usersByEmail } = buildUserIndexes(latestUsers);
+    const visiblePosts = latestPosts.filter((post) => hasExistingPostAuthor(post, usersById, usersByName, usersByEmail));
+    stats.posts = visiblePosts.length;
+    stats.pending = visiblePosts.filter((p: any) => !p.status || p.status === "Pending").length;
+  };
 
   const unsubscribeUsers = onValue(usersRef, (snapshot) => {
-    stats.users = snapshot.exists() ? Object.keys(snapshot.val()).length : 0;
+    latestUsers = snapshot.exists()
+      ? Object.entries(snapshot.val()).map(([id, value]: [string, any]) => ({ id, ...value }))
+      : [];
+    stats.users = latestUsers.length;
+    updatePostStats();
     updateStats();
   });
 
   const unsubscribePosts = onValue(postsRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
-      stats.posts = Object.keys(data).length;
-      stats.pending = Object.values(data).filter((p: any) => !p.status || p.status === "Pending").length;
+      latestPosts = Object.entries(data).map(([id, post]: [string, any]) => ({ id, ...post }));
     } else {
-      stats.posts = 0;
-      stats.pending = 0;
+      latestPosts = [];
     }
+    updatePostStats();
     updateStats();
   });
 
@@ -97,17 +115,48 @@ export const subscribeToPosts = (callback: (posts: any[]) => void) => {
 const buildUserIndexes = (users: any[]) => {
   const usersById: Record<string, any> = {};
   const usersByName: Record<string, any> = {};
+  const usersByEmail: Record<string, any> = {};
 
   users.forEach((user) => {
     usersById[user.id] = user;
-    if (user.name) usersByName[user.name] = user;
+    if (user.name) usersByName[String(user.name).toLowerCase()] = user;
+    if (user.email) usersByEmail[String(user.email).toLowerCase()] = user;
   });
 
-  return { usersById, usersByName };
+  return { usersById, usersByName, usersByEmail };
 };
 
-const enrichPostWithUser = (post: any, usersById: Record<string, any>, usersByName: Record<string, any>) => {
-  const user = (post.uid && usersById[post.uid]) || (post.name && usersByName[post.name]) || null;
+const getPostAuthorUser = (
+  post: any,
+  usersById: Record<string, any>,
+  usersByName: Record<string, any>,
+  usersByEmail: Record<string, any>
+) => {
+  const userId = post.uid || post.userId || post.authorId || post.createdBy || "";
+  const name = post.name ? String(post.name).toLowerCase() : "";
+  const email = post.email ? String(post.email).toLowerCase() : "";
+  return (userId && usersById[userId]) || (email && usersByEmail[email]) || (name && usersByName[name]) || null;
+};
+
+const hasExistingPostAuthor = (
+  post: any,
+  usersById: Record<string, any>,
+  usersByName: Record<string, any>,
+  usersByEmail: Record<string, any>
+) => {
+  const hasUserIdentifier = Boolean(post.uid || post.userId || post.authorId || post.createdBy || post.email);
+  if (!hasUserIdentifier) return true;
+
+  return Boolean(getPostAuthorUser(post, usersById, usersByName, usersByEmail));
+};
+
+const enrichPostWithUser = (
+  post: any,
+  usersById: Record<string, any>,
+  usersByName: Record<string, any>,
+  usersByEmail: Record<string, any>
+) => {
+  const user = getPostAuthorUser(post, usersById, usersByName, usersByEmail);
 
   return {
     ...post,
@@ -146,8 +195,12 @@ export const subscribeToPostsWithUsers = (callback: (posts: any[]) => void) => {
   let latestUsers: any[] = [];
 
   const updatePosts = () => {
-    const { usersById, usersByName } = buildUserIndexes(latestUsers);
-    callback(latestPosts.map((post) => enrichPostWithUser(post, usersById, usersByName)));
+    const { usersById, usersByName, usersByEmail } = buildUserIndexes(latestUsers);
+    callback(
+      latestPosts
+        .filter((post) => hasExistingPostAuthor(post, usersById, usersByName, usersByEmail))
+        .map((post) => enrichPostWithUser(post, usersById, usersByName, usersByEmail))
+    );
   };
 
   const unsubscribePosts = subscribeToPosts((posts) => {
@@ -175,7 +228,8 @@ const normalizePostReport = (
 ) => {
   const reporterId = report.uid || report.userId || report.reporterId || report.reportedByUid || report.reportedBy || null;
   const reporterName = report.name || report.reporterName || report.userName || report.reportedByName || "";
-  const reporter = (reporterId && usersById[reporterId]) || (reporterName && usersByName[reporterName]) || null;
+  const reporterNameKey = reporterName ? String(reporterName).toLowerCase() : "";
+  const reporter = (reporterId && usersById[reporterId]) || (reporterNameKey && usersByName[reporterNameKey]) || null;
   const issue =
     report.issue ||
     report.reason ||
@@ -230,7 +284,8 @@ const normalizeAccountBlockClaim = (
 ) => {
   const userId = claim.uid || claim.userId || claim.claimedUserId || claim.accountId || claim.reporterId || "";
   const userName = claim.name || claim.userName || claim.reporterName || claim.claimedUserName || "";
-  const user = (userId && usersById[userId]) || (userName && usersByName[userName]) || null;
+  const userNameKey = userName ? String(userName).toLowerCase() : "";
+  const user = (userId && usersById[userId]) || (userNameKey && usersByName[userNameKey]) || null;
   const reason =
     claim.reason ||
     claim.issue ||
@@ -490,7 +545,8 @@ export const subscribeToRepliesWithUsers = (callback: (replies: any) => void) =>
         postId,
         Object.fromEntries(
           Object.entries(postReplies || {}).map(([replyId, reply]: [string, any]) => {
-            const user = (reply.uid && usersById[reply.uid]) || (reply.name && usersByName[reply.name]) || null;
+            const replyNameKey = reply.name ? String(reply.name).toLowerCase() : "";
+            const user = (reply.uid && usersById[reply.uid]) || (replyNameKey && usersByName[replyNameKey]) || null;
             return [
               replyId,
               {
@@ -573,7 +629,8 @@ export const getChartData = (posts: any[], users: any[]) => {
       chartData[monthIndex].pending++;
     }
 
-    const user = (p.uid && usersById[p.uid]) || (p.name && usersByName[p.name]) || null;
+    const postNameKey = p.name ? String(p.name).toLowerCase() : "";
+    const user = (p.uid && usersById[p.uid]) || (postNameKey && usersByName[postNameKey]) || null;
     const userKey = user?.id || p.uid || p.name;
 
     if (userKey && !user?.blocked) {
