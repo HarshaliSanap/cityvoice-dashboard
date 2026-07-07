@@ -3,13 +3,14 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, KeyRound, LayoutDashboard, Users, SquarePen, FileText, MessageSquare, Network, Shield, Settings, LogOut, Send } from "lucide-react";
 import Link from "next/link";
-import { logoutAdmin } from "@/lib/services/authService";
+import { getAdminRoleLabel, getDashboardPathForRole, logoutAdmin } from "@/lib/services/authService";
 import { useAuth } from "./AuthProvider";
 
 const nav = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Notifications", icon: Bell, href: "/notifications" },
   { label: "Notify Users", icon: Send, href: "/notify" },
+  { label: "Register User", icon: Users, href: "/signup", superAdminOnly: true },
   { label: "User Management", icon: Users, href: "/users" },
   { label: "Post", icon: SquarePen, href: "/posts" },
   { label: "Reports", icon: FileText, href: "/reports" },
@@ -24,6 +25,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [logoFailed, setLogoFailed] = useState(false);
   const { adminProfile, isSuperAdmin } = useAuth();
+  const dashboardHref = adminProfile ? getDashboardPathForRole(adminProfile.role) : "/";
 
   const handleLogout = async () => {
     if (!confirm("Are you sure you want to logout?")) return;
@@ -53,11 +55,12 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 py-4">
         {nav.filter((item) => !item.superAdminOnly || isSuperAdmin).map(({ label, icon: Icon, href }) => {
-          const isActive = pathname === href;
+          const itemHref = label === "Dashboard" ? dashboardHref : href;
+          const isActive = pathname === itemHref || (label === "Dashboard" && pathname === "/");
           return (
             <Link
               key={label}
-              href={href}
+              href={itemHref}
               className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors hover:bg-navy-light
                 ${isActive ? "bg-brand text-white" : "text-gray-300"}`}
             >
@@ -72,7 +75,7 @@ export default function Sidebar() {
       <div className="px-6 py-4 border-t border-navy-light">
         <div className="mb-4 min-w-0 text-xs text-gray-300">
           <p className="truncate font-bold text-white">{adminProfile?.name || "Admin"}</p>
-          <p className="truncate">{adminProfile?.role === "super_admin" ? "Super Admin" : "Admin"}</p>
+          <p className="truncate">{adminProfile ? getAdminRoleLabel(adminProfile.role) : "Admin"}</p>
         </div>
         <button 
           onClick={handleLogout}

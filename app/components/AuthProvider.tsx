@@ -3,12 +3,21 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { User } from "firebase/auth";
-import { getAdminProfile, watchAuthState, type AdminProfile } from "@/lib/services/authService";
+import {
+  getAdminProfile,
+  getCreatableRolesForRole,
+  getDashboardPathForRole,
+  hasRoleAtLeast,
+  isOtpVerifiedForSession,
+  watchAuthState,
+  type AdminProfile,
+} from "@/lib/services/authService";
 
 type AuthContextValue = {
   firebaseUser: User | null;
   adminProfile: AdminProfile | null;
   isLoading: boolean;
+  isDeveloper: boolean;
   isSuperAdmin: boolean;
 };
 
@@ -16,10 +25,11 @@ const AuthContext = createContext<AuthContextValue>({
   firebaseUser: null,
   adminProfile: null,
   isLoading: true,
+  isDeveloper: false,
   isSuperAdmin: false,
 });
 
-const publicRoutes = ["/login", "/signup"];
+const publicRoutes = ["/login"];
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -31,6 +41,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(true);
 
   const isPublicRoute = publicRoutes.includes(pathname);
+  const isOtpVerified = firebaseUser ? isOtpVerifiedForSession(firebaseUser.uid) : false;
 
   useEffect(() => {
     const unsubscribe = watchAuthState(async (user) => {
@@ -44,6 +55,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       }
 
       const profile = await getAdminProfile(user.uid);
+      const otpVerified = isOtpVerifiedForSession(user.uid);
       setAdminProfile(profile);
       setIsLoading(false);
 
@@ -52,18 +64,44 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         return;
       }
 
-      if (isPublicRoute && profile) router.replace("/");
+      if (profile && !otpVerified && !isPublicRoute) {
+        router.replace("/login");
+        return;
+      }
+
+      if (profile && otpVerified && pathname === "/") {
+        router.replace(getDashboardPathForRole(profile.role));
+        return;
+      }
+
+      if (profile && otpVerified && pathname === "/developer-dashboard" && profile.role !== "developer") {
+        router.replace(getDashboardPathForRole(profile.role));
+        return;
+      }
+
+      if (profile && otpVerified && pathname === "/super-admin-dashboard" && !hasRoleAtLeast(profile.role, "super_admin")) {
+        router.replace(getDashboardPathForRole(profile.role));
+        return;
+      }
+
+      if (profile && otpVerified && pathname === "/signup" && getCreatableRolesForRole(profile.role).length === 0) {
+        router.replace(getDashboardPathForRole(profile.role));
+        return;
+      }
+
+      if (isPublicRoute && profile && otpVerified) router.replace(getDashboardPathForRole(profile.role));
     });
 
     return () => unsubscribe();
-  }, [isPublicRoute, router]);
+  }, [isPublicRoute, pathname, router]);
 
   const value = useMemo(
     () => ({
       firebaseUser,
       adminProfile,
       isLoading,
-      isSuperAdmin: adminProfile?.role === "super_admin",
+      isDeveloper: adminProfile?.role === "developer",
+      isSuperAdmin: hasRoleAtLeast(adminProfile?.role, "super_admin"),
     }),
     [adminProfile, firebaseUser, isLoading]
   );
@@ -78,7 +116,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     );
   }
 
-  if (!isPublicRoute && (!firebaseUser || !adminProfile)) {
+  if (!isPublicRoute && (!firebaseUser || !adminProfile || !isOtpVerified)) {
     return null;
   }
 
